@@ -1,0 +1,8 @@
+com\pdvgenerico\dto\ItemVendaResponse.class
+com\pdvgenerico\dto\VendaRequest.class
+com\pdvgenerico\exception\GlobalExceptionHandler.class
+com\pdvgenerico\exception\BusinessException.class
+com\pdvgenerico\dto\VendaResponse.class
+com\pdvgenerico\exception\ResourceNotFoundException.class
+com\pdvgenerico\service\VendaService.class
+com\pdvgenerico\dto\VendaRequest$ItemVendaRequest.class
