@@ -11,6 +11,9 @@ public record VendaResponse(
         String usuarioNome,
         LocalDateTime dataHora,
         String formaPagamento,
+        BigDecimal subtotal,
+        BigDecimal percentualDesconto,
+        BigDecimal valorDesconto,
         BigDecimal total,
         List<ItemVendaResponse> itens
 ) {
@@ -20,6 +23,9 @@ public record VendaResponse(
                 venda.getUsuario().getNome(),
                 venda.getDataHora(),
                 venda.getFormaPagamento().name(),
+                venda.getSubtotal(),
+                venda.getPercentualDesconto(),
+                venda.getValorDesconto(),
                 venda.getTotal(),
                 venda.getItens().stream().map(ItemVendaResponse::fromEntity).toList()
         );

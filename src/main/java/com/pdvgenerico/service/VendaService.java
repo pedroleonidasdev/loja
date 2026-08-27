@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -22,10 +23,12 @@ public class VendaService {
     private final VendaRepository vendaRepository;
     private final ProdutoRepository produtoRepository;
 
+    private static final BigDecimal CEM = BigDecimal.valueOf(100);
+
     @Transactional
     public Venda registrarVenda(VendaRequest request, Usuario usuarioLogado) {
         List<ItemVenda> itens = new ArrayList<>();
-        BigDecimal total = BigDecimal.ZERO;
+        BigDecimal subtotal = BigDecimal.ZERO;
 
         Venda venda = Venda.builder()
                 .usuario(usuarioLogado)
@@ -45,21 +48,36 @@ public class VendaService {
             produto.setQuantidadeEstoque(produto.getQuantidadeEstoque() - itemReq.quantidade());
             produtoRepository.save(produto);
 
-            BigDecimal subtotal = produto.getPrecoVenda().multiply(BigDecimal.valueOf(itemReq.quantidade()));
-            total = total.add(subtotal);
+            BigDecimal subtotalItem = produto.getPrecoVenda().multiply(BigDecimal.valueOf(itemReq.quantidade()));
+            subtotal = subtotal.add(subtotalItem);
 
             ItemVenda item = ItemVenda.builder()
                     .venda(venda)
                     .produto(produto)
                     .quantidade(itemReq.quantidade())
                     .precoUnitario(produto.getPrecoVenda())
-                    .subtotal(subtotal)
+                    .subtotal(subtotalItem)
                     .build();
 
             itens.add(item);
         }
 
+        // O percentual de desconto é sempre validado e recalculado no servidor;
+        // o valor enviado pelo cliente nunca é usado diretamente como valor monetário.
+        BigDecimal percentualDesconto = request.percentualDesconto() != null
+                ? request.percentualDesconto()
+                : BigDecimal.ZERO;
+
+        BigDecimal valorDesconto = subtotal
+                .multiply(percentualDesconto)
+                .divide(CEM, 2, RoundingMode.HALF_UP);
+
+        BigDecimal total = subtotal.subtract(valorDesconto);
+
         venda.setItens(itens);
+        venda.setSubtotal(subtotal);
+        venda.setPercentualDesconto(percentualDesconto);
+        venda.setValorDesconto(valorDesconto);
         venda.setTotal(total);
 
         return vendaRepository.save(venda);

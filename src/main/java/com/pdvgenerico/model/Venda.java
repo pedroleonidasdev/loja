@@ -35,6 +35,15 @@ public class Venda {
     @Column(nullable = false, length = 20)
     private FormaPagamento formaPagamento;
 
+    @Column(precision = 10, scale = 2)
+    private BigDecimal subtotal;
+
+    @Column(precision = 5, scale = 2)
+    private BigDecimal percentualDesconto;
+
+    @Column(precision = 10, scale = 2)
+    private BigDecimal valorDesconto;
+
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal total;
 
