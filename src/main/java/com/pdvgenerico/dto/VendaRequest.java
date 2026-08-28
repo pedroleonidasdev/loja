@@ -6,6 +6,7 @@ import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -19,7 +20,7 @@ public record VendaRequest(
 ) {
     public record ItemVendaRequest(
             @NotNull Long produtoId,
-            @NotNull Integer quantidade
+            @NotNull @Positive(message = "Quantidade deve ser maior que zero") Integer quantidade
     ) {
     }
 }
