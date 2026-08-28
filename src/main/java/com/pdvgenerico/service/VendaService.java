@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -32,7 +33,11 @@ public class VendaService {
 
         Venda venda = Venda.builder()
                 .usuario(usuarioLogado)
-                .dataHora(LocalDateTime.now())
+                // grava sempre em UTC "cru", independente do fuso da máquina/servidor que roda o
+                // backend — o frontend converte isso para o fuso de Brasília na hora de exibir.
+                // Se usássemos LocalDateTime.now() puro, o valor mudaria de significado conforme
+                // o fuso do host (ex: máquina local em Brasília vs. servidor em UTC no Render).
+                .dataHora(LocalDateTime.now(ZoneOffset.UTC))
                 .formaPagamento(request.formaPagamento())
                 .total(BigDecimal.ZERO)
                 .build();

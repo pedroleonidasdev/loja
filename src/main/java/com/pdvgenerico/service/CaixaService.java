@@ -11,6 +11,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -23,6 +25,10 @@ public class CaixaService {
         return caixaRepository.findByAbertoTrue();
     }
 
+    public List<Caixa> listarPorPeriodo(LocalDateTime inicio, LocalDateTime fim) {
+        return caixaRepository.findByDataAberturaBetweenOrderByDataAberturaDesc(inicio, fim);
+    }
+
     @Transactional
     public Caixa abrir(CaixaRequest request, Usuario usuarioLogado) {
         if (caixaRepository.findByAbertoTrue().isPresent()) {
@@ -32,7 +38,9 @@ public class CaixaService {
         Caixa caixa = Caixa.builder()
                 .usuarioAbertura(usuarioLogado)
                 .valorInicial(request.valorInicial())
-                .dataAbertura(LocalDateTime.now())
+                // grava sempre em UTC "cru", independente do fuso da máquina/servidor que roda o
+                // backend — o frontend converte isso para o fuso de Brasília na hora de exibir.
+                .dataAbertura(LocalDateTime.now(ZoneOffset.UTC))
                 .aberto(true)
                 .build();
 
@@ -46,7 +54,7 @@ public class CaixaService {
 
         caixa.setUsuarioFechamento(usuarioLogado);
         caixa.setValorFinal(request.valorFinal());
-        caixa.setDataFechamento(LocalDateTime.now());
+        caixa.setDataFechamento(LocalDateTime.now(ZoneOffset.UTC));
         caixa.setAberto(false);
 
         return caixaRepository.save(caixa);
