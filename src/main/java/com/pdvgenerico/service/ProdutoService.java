@@ -7,6 +7,7 @@ import com.pdvgenerico.model.Categoria;
 import com.pdvgenerico.model.Produto;
 import com.pdvgenerico.repository.CategoriaRepository;
 import com.pdvgenerico.repository.ProdutoRepository;
+import com.pdvgenerico.util.GeradorCodigoBarras;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -64,7 +65,16 @@ public class ProdutoService {
                 .ativo(true)
                 .build();
 
-        return produtoRepository.save(produto);
+        produtoRepository.save(produto);
+
+        // se o operador não informou um código de barras, gera um automaticamente com
+        // base no id do produto (só sabemos o id depois do primeiro save)
+        if (produto.getCodigoBarras() == null || produto.getCodigoBarras().isBlank()) {
+            produto.setCodigoBarras(GeradorCodigoBarras.gerarEan13(produto.getId()));
+            produtoRepository.save(produto);
+        }
+
+        return produto;
     }
 
     @Transactional
@@ -88,6 +98,25 @@ public class ProdutoService {
         Produto produto = buscarPorId(id);
         produto.setAtivo(false);
         produtoRepository.save(produto);
+    }
+
+    /**
+     * Gera código de barras para todo produto ativo que ainda não tem um (campo nulo
+     * ou vazio) — usado para "colocar em dia" produtos cadastrados antes dessa
+     * funcionalidade existir. Retorna quantos produtos foram atualizados.
+     */
+    @Transactional
+    public int gerarCodigosEmLote() {
+        List<Produto> semCodigo = produtoRepository.findByAtivoTrue().stream()
+                .filter(p -> p.getCodigoBarras() == null || p.getCodigoBarras().isBlank())
+                .toList();
+
+        for (Produto produto : semCodigo) {
+            produto.setCodigoBarras(GeradorCodigoBarras.gerarEan13(produto.getId()));
+        }
+        produtoRepository.saveAll(semCodigo);
+
+        return semCodigo.size();
     }
 
     private Categoria resolverCategoria(Long categoriaId) {

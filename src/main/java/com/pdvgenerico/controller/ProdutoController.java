@@ -10,6 +10,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/produtos")
@@ -49,6 +50,16 @@ public class ProdutoController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Produto> criar(@Valid @RequestBody ProdutoRequest request) {
         return ResponseEntity.ok(produtoService.criar(request));
+    }
+
+    // preenche o código de barras de produtos ativos que ainda não têm um — usado
+    // uma vez para "colocar em dia" o catálogo, depois disso todo produto novo já
+    // recebe o código automaticamente ao ser cadastrado (ver ProdutoService.criar)
+    @PostMapping("/gerar-codigos-em-lote")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Map<String, Integer>> gerarCodigosEmLote() {
+        int gerados = produtoService.gerarCodigosEmLote();
+        return ResponseEntity.ok(Map.of("produtosAtualizados", gerados));
     }
 
     @PutMapping("/{id}")
