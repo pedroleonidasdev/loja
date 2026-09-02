@@ -78,6 +78,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/vendas/**").hasAnyRole("ADMIN", "CAIXA")
                         .requestMatchers("/api/trocas/**").hasAnyRole("ADMIN", "CAIXA")
                         .requestMatchers("/api/caixa/**").hasAnyRole("ADMIN", "CAIXA")
+                        .requestMatchers("/api/impressora/**").hasAnyRole("ADMIN", "CAIXA")
                         .requestMatchers("/api/relatorios/**").hasRole("ADMIN")
                         .requestMatchers("/api/usuarios/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
