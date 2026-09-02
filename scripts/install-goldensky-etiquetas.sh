@@ -1,8 +1,15 @@
 #!/usr/bin/env bash
-# Instala o agente goldensky-etiquetas.py no computador que tem a impressora
-# térmica Goldensky-80 conectada via USB e a fila CUPS configurada.
+# Instala o agente de etiquetas Goldensky no computador da loja que tem a
+# impressora térmica conectada via USB e a fila CUPS configurada.
 #
-# Uso (no computador com a impressora, dentro da pasta loja-main):
+# Instala:
+#   - /usr/local/bin/goldensky_core.py     (lógica compartilhada)
+#   - /usr/local/bin/goldensky-etiquetas.py (uso manual via CLI/teste)
+#   - /usr/local/bin/goldensky-agente.py    (serviço HTTP em 127.0.0.1:9100,
+#                                             chamado direto pelo navegador do PDV)
+#   - serviço systemd goldensky-agente, ativo e iniciando com o sistema
+#
+# Uso (dentro da pasta loja-main, no computador com a impressora):
 #   sudo ./scripts/install-goldensky-etiquetas.sh
 
 set -euo pipefail
@@ -13,7 +20,7 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DESTINO="/usr/local/bin/goldensky-etiquetas.py"
+DESTINO_BIN="/usr/local/bin"
 
 echo "Verificando dependências..."
 FALTANDO=()
@@ -29,9 +36,32 @@ if [ ${#FALTANDO[@]} -gt 0 ]; then
   exit 1
 fi
 
-echo "Copiando agente para ${DESTINO}..."
-cp "${SCRIPT_DIR}/goldensky-etiquetas.py" "${DESTINO}"
-chmod 755 "${DESTINO}"
+echo "Copiando os scripts para ${DESTINO_BIN}..."
+cp "${SCRIPT_DIR}/goldensky_core.py" "${DESTINO_BIN}/goldensky_core.py"
+cp "${SCRIPT_DIR}/goldensky-etiquetas.py" "${DESTINO_BIN}/goldensky-etiquetas.py"
+cp "${SCRIPT_DIR}/goldensky-agente.py" "${DESTINO_BIN}/goldensky-agente.py"
+chmod 755 "${DESTINO_BIN}/goldensky-etiquetas.py" "${DESTINO_BIN}/goldensky-agente.py"
+chmod 644 "${DESTINO_BIN}/goldensky_core.py"
+
+echo "Criando usuário de sistema goldensky-agente (sem login, sem privilégios)..."
+if ! id -u goldensky-agente >/dev/null 2>&1; then
+  useradd --system --no-create-home --shell /usr/sbin/nologin goldensky-agente
+fi
+usermod -aG lp,lpadmin goldensky-agente
+
+echo "Instalando o serviço systemd..."
+cp "${SCRIPT_DIR}/goldensky-agente.service" /etc/systemd/system/goldensky-agente.service
+systemctl daemon-reload
+systemctl enable goldensky-agente.service
+systemctl restart goldensky-agente.service
+
+sleep 1
+if systemctl is-active --quiet goldensky-agente.service; then
+  echo "Serviço goldensky-agente rodando em http://127.0.0.1:9100"
+else
+  echo "AVISO: o serviço não iniciou corretamente. Veja os logs com:"
+  echo "  sudo journalctl -u goldensky-agente -n 50"
+fi
 
 echo "Verificando fila CUPS Goldensky-80..."
 if lpstat -p Goldensky-80 >/dev/null 2>&1; then
@@ -43,5 +73,9 @@ fi
 
 echo ""
 echo "Instalação concluída."
-echo "Teste sem imprimir com:"
-echo "  GOLDENSKY_DRY_RUN=1 ${DESTINO} < ${SCRIPT_DIR}/exemplo-etiquetas.json"
+echo "Teste o serviço HTTP com:"
+echo "  curl http://127.0.0.1:9100/status"
+echo "Teste uma impressão sem gastar etiqueta (dry-run) com o CLI:"
+echo "  sudo systemctl stop goldensky-agente"
+echo "  GOLDENSKY_DRY_RUN=1 ${DESTINO_BIN}/goldensky-etiquetas.py < ${SCRIPT_DIR}/exemplo-etiquetas.json"
+echo "  sudo systemctl start goldensky-agente"
