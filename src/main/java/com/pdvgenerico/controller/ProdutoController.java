@@ -47,7 +47,7 @@ public class ProdutoController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CAIXA')")
     public ResponseEntity<Produto> criar(@Valid @RequestBody ProdutoRequest request) {
         return ResponseEntity.ok(produtoService.criar(request));
     }

@@ -1,5 +1,6 @@
 package com.pdvgenerico.controller;
 
+import com.pdvgenerico.dto.EditarFormaPagamentoRequest;
 import com.pdvgenerico.dto.VendaRequest;
 import com.pdvgenerico.dto.VendaResponse;
 import com.pdvgenerico.model.Usuario;
@@ -45,6 +46,17 @@ public class VendaController {
     @PreAuthorize("hasAnyRole('ADMIN', 'CAIXA')")
     public VendaResponse buscarPorId(@PathVariable Long id) {
         return VendaResponse.fromEntity(vendaService.buscarPorId(id));
+    }
+
+    // corrige a forma de pagamento de uma venda já registrada. CAIXA pode chamar,
+    // mas precisa informar login+senha de um ADMIN no corpo da requisição — a
+    // validação de quem pode autorizar acontece no service, não aqui.
+    @PutMapping("/{id}/forma-pagamento")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CAIXA')")
+    public VendaResponse editarFormaPagamento(@PathVariable Long id,
+                                               @Valid @RequestBody EditarFormaPagamentoRequest request,
+                                               @AuthenticationPrincipal Usuario usuarioLogado) {
+        return VendaResponse.fromEntity(vendaService.editarFormaPagamento(id, request, usuarioLogado));
     }
 
     @DeleteMapping("/{id}")

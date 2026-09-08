@@ -1,12 +1,15 @@
 package com.pdvgenerico.service;
 
+import com.pdvgenerico.dto.EditarFormaPagamentoRequest;
 import com.pdvgenerico.dto.VendaRequest;
 import com.pdvgenerico.exception.BusinessException;
 import com.pdvgenerico.exception.ResourceNotFoundException;
 import com.pdvgenerico.model.*;
 import com.pdvgenerico.repository.ProdutoRepository;
+import com.pdvgenerico.repository.UsuarioRepository;
 import com.pdvgenerico.repository.VendaRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +26,8 @@ public class VendaService {
 
     private final VendaRepository vendaRepository;
     private final ProdutoRepository produtoRepository;
+    private final UsuarioRepository usuarioRepository;
+    private final PasswordEncoder passwordEncoder;
 
     private static final BigDecimal CEM = BigDecimal.valueOf(100);
 
@@ -99,6 +104,44 @@ public class VendaService {
 
     public List<Venda> listarPorPeriodo(LocalDateTime inicio, LocalDateTime fim) {
         return vendaRepository.findByDataHoraBetweenOrderByDataHoraDesc(inicio, fim);
+    }
+
+    /**
+     * Corrige a forma de pagamento de uma venda já registrada — cenário típico:
+     * o operador de caixa selecionou a forma errada na hora da venda.
+     * ADMIN pode corrigir diretamente. Qualquer outro perfil (CAIXA) só consegue
+     * se informar login e senha de um usuário ADMIN ativo — a correção fica
+     * "assinada" por esse administrador.
+     */
+    @Transactional
+    public Venda editarFormaPagamento(Long id, EditarFormaPagamentoRequest request, Usuario usuarioLogado) {
+        Venda venda = buscarPorId(id);
+
+        if (usuarioLogado.getPerfil() != Perfil.ADMIN) {
+            autorizarComoAdmin(request.usuarioAutorizacaoLogin(), request.senhaAutorizacao());
+        }
+
+        venda.setFormaPagamento(request.formaPagamento());
+        return vendaRepository.save(venda);
+    }
+
+    private void autorizarComoAdmin(String login, String senha) {
+        if (login == null || login.isBlank() || senha == null || senha.isBlank()) {
+            throw new BusinessException("Login e senha de um administrador são obrigatórios para esta edição");
+        }
+
+        Usuario admin = usuarioRepository.findByLogin(login)
+                .orElseThrow(() -> new BusinessException("Autorização inválida: usuário não encontrado"));
+
+        if (admin.getPerfil() != Perfil.ADMIN) {
+            throw new BusinessException("Autorização inválida: usuário informado não é administrador");
+        }
+        if (!admin.isAtivo()) {
+            throw new BusinessException("Autorização inválida: usuário administrador está inativo");
+        }
+        if (!passwordEncoder.matches(senha, admin.getSenha())) {
+            throw new BusinessException("Autorização inválida: senha incorreta");
+        }
     }
 
     @Transactional
