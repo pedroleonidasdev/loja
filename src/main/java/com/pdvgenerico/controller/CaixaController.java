@@ -47,10 +47,12 @@ public class CaixaController {
         return ResponseEntity.ok(CaixaResponse.fromEntity(caixaService.abrir(request, usuarioLogado)));
     }
 
-    // Só ADMIN pode fechar o caixa — decisão de negócio: o fechamento do dia é conferido
-    // e confirmado pelo administrador, mesmo que qualquer operador possa abrir pela manhã.
+    // Fechamento pode ser feito por ADMIN ou CAIXA. O operador de caixa só informa
+    // o valor contado fisicamente (dinheiro em caixa) — o sistema não expõe o
+    // faturamento do dia pra ele nessa tela; só o ADMIN vê esse comparativo depois,
+    // em Relatórios.
     @PostMapping("/fechar")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CAIXA')")
     public ResponseEntity<CaixaResponse> fechar(@Valid @RequestBody CaixaRequest.FechamentoRequest request,
                                                  @AuthenticationPrincipal Usuario usuarioLogado) {
         return ResponseEntity.ok(CaixaResponse.fromEntity(caixaService.fechar(request, usuarioLogado)));
