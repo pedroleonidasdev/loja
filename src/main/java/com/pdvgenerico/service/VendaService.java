@@ -72,25 +72,21 @@ public class VendaService {
             itens.add(item);
         }
 
-        // Desconto: se vier valor em dinheiro, ele tem prioridade; senão, usa o percentual.
+        // Desconto: percentual e valor em dinheiro se somam — dá pra usar os dois
+        // juntos (ex: 10% de desconto + tirar mais R$ 2 pra fechar redondo).
+        BigDecimal percentualDesconto = request.percentualDesconto() != null
+                ? request.percentualDesconto()
+                : BigDecimal.ZERO;
         BigDecimal valorDescontoInformado = request.valorDescontoInformado() != null
                 ? request.valorDescontoInformado()
                 : BigDecimal.ZERO;
 
-        BigDecimal percentualDesconto;
-        BigDecimal valorDesconto;
+        BigDecimal valorDescontoPercentual = subtotal
+                .multiply(percentualDesconto)
+                .divide(CEM, 2, RoundingMode.HALF_UP);
 
-        if (valorDescontoInformado.compareTo(BigDecimal.ZERO) > 0) {
-            valorDesconto = valorDescontoInformado.min(subtotal); // nunca deixa o total ficar negativo
-            percentualDesconto = BigDecimal.ZERO;
-        } else {
-            percentualDesconto = request.percentualDesconto() != null
-                    ? request.percentualDesconto()
-                    : BigDecimal.ZERO;
-            valorDesconto = subtotal
-                    .multiply(percentualDesconto)
-                    .divide(CEM, 2, RoundingMode.HALF_UP);
-        }
+        // nunca deixa o total ficar negativo, mesmo somando os dois descontos
+        BigDecimal valorDesconto = valorDescontoPercentual.add(valorDescontoInformado).min(subtotal);
 
         BigDecimal total = subtotal.subtract(valorDesconto);
 
