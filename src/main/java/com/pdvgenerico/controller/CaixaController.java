@@ -57,4 +57,13 @@ public class CaixaController {
                                                  @AuthenticationPrincipal Usuario usuarioLogado) {
         return ResponseEntity.ok(CaixaResponse.fromEntity(caixaService.fechar(request, usuarioLogado)));
     }
+
+    // Só ADMIN reabre caixa, e só o fechado mais recente (ver CaixaService.reabrir).
+    // Uso típico: caixa fechado por engano, ou faltou lançar uma venda antes de fechar.
+    @PostMapping("/{id}/reabrir")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<CaixaResponse> reabrir(@PathVariable Long id,
+                                                  @AuthenticationPrincipal Usuario usuarioLogado) {
+        return ResponseEntity.ok(CaixaResponse.fromEntity(caixaService.reabrir(id, usuarioLogado)));
+    }
 }

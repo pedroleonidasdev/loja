@@ -13,7 +13,9 @@ public record CaixaResponse(
         String usuarioFechamentoNome,
         BigDecimal valorFinal,
         LocalDateTime dataFechamento,
-        boolean aberto
+        boolean aberto,
+        String usuarioReaberturaNome,
+        LocalDateTime dataReabertura
 ) {
     public static CaixaResponse fromEntity(Caixa caixa) {
         return new CaixaResponse(
@@ -24,7 +26,9 @@ public record CaixaResponse(
                 caixa.getUsuarioFechamento() != null ? caixa.getUsuarioFechamento().getNome() : null,
                 caixa.getValorFinal(),
                 caixa.getDataFechamento(),
-                caixa.isAberto()
+                caixa.isAberto(),
+                caixa.getUsuarioReabertura() != null ? caixa.getUsuarioReabertura().getNome() : null,
+                caixa.getDataReabertura()
         );
     }
 }

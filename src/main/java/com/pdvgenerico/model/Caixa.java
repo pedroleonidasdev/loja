@@ -43,4 +43,14 @@ public class Caixa {
     @Column(nullable = false)
     @Builder.Default
     private boolean aberto = true;
+
+    // Preenchido quando um ADMIN reabre um caixa já fechado (ex.: fechamento
+    // por engano, ou venda esquecida de lançar). O histórico de abertura
+    // original (usuarioAbertura/dataAbertura) não é alterado nesse caso —
+    // só esses dois campos registram quem reabriu e quando.
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "usuario_reabertura_id")
+    private Usuario usuarioReabertura;
+
+    private LocalDateTime dataReabertura;
 }

@@ -59,4 +59,37 @@ public class CaixaService {
 
         return caixaRepository.save(caixa);
     }
+
+    // Reabertura é restrita a ADMIN (ver @PreAuthorize no controller) e só é
+    // permitida para o caixa fechado mais recente, pra não bagunçar o histórico
+    // reabrindo um caixa antigo enquanto outros mais novos já foram fechados.
+    @Transactional
+    public Caixa reabrir(Long id, Usuario usuarioLogado) {
+        if (caixaRepository.findByAbertoTrue().isPresent()) {
+            throw new BusinessException("Já existe um caixa aberto. Feche o caixa atual antes de reabrir outro.");
+        }
+
+        Caixa caixa = caixaRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Caixa não encontrado."));
+
+        if (caixa.isAberto()) {
+            throw new BusinessException("Este caixa já está aberto.");
+        }
+
+        Caixa ultimoFechado = caixaRepository.findFirstByAbertoFalseOrderByDataFechamentoDesc()
+                .orElseThrow(() -> new ResourceNotFoundException("Não há caixa fechado para reabrir."));
+
+        if (!ultimoFechado.getId().equals(caixa.getId())) {
+            throw new BusinessException("Só é possível reabrir o caixa fechado mais recente.");
+        }
+
+        caixa.setAberto(true);
+        caixa.setDataFechamento(null);
+        caixa.setValorFinal(null);
+        caixa.setUsuarioFechamento(null);
+        caixa.setUsuarioReabertura(usuarioLogado);
+        caixa.setDataReabertura(LocalDateTime.now(ZoneOffset.UTC));
+
+        return caixaRepository.save(caixa);
+    }
 }
