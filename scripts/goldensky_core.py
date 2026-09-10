@@ -5,7 +5,7 @@ quem importa este módulo (goldensky-etiquetas.py para uso manual via CLI,
 goldensky-agente.py para o serviço HTTP local que o frontend chama).
 
 Para cada etiqueta:
-  1. Monta uma página de PDF de 60 x 30mm (nome + preço + código de barras) com reportlab.
+  1. Monta uma página de PDF no tamanho da etiqueta (nome + preço + código de barras) com reportlab.
   2. Rasteriza essa página em PNG a 203 dpi com pdftoppm (poppler-utils).
   3. Converte o raster em comandos RAW ESC/POS (GS v 0) para a Goldensky.
 
@@ -31,23 +31,39 @@ class EtiquetaError(Exception):
 
 
 # --- Configuração física da etiqueta -----------------------------------------
-# Lote de etiquetas adesivas pré-cortadas de 60 x 30mm usado neste projeto.
-# Se o lote físico mudar de tamanho, recalibre estas constantes.
-LABEL_WIDTH_MM = 60
-LABEL_HEIGHT_MM = 30
+# Valores padrão — usados quando o pedido de impressão não informa dimensão
+# própria. O lote original usado neste projeto é de etiquetas adesivas
+# pré-cortadas de 60 x 30mm. O frontend permite ajustar isso por lote de
+# etiquetas diferente, sem precisar mexer no código.
+DEFAULT_LABEL_WIDTH_MM = 60
+DEFAULT_LABEL_HEIGHT_MM = 30
+DEFAULT_GAP_MM = 4  # espaçamento entre uma etiqueta e a próxima, medido fisicamente
+
 DPI = 203  # resolução nativa da cabeça de impressão da Goldensky 80mm
+
+# limites de sanidade — a cabeça de impressão da Goldensky-80 imprime no
+# máximo ~80mm de largura; abaixo disso é só para evitar valor absurdo digitado
+LARGURA_MIN_MM, LARGURA_MAX_MM = 20, 80
+ALTURA_MIN_MM, ALTURA_MAX_MM = 10, 150
+ESPACAMENTO_MIN_MM, ESPACAMENTO_MAX_MM = 0, 30
 
 CUPS_QUEUE = os.environ.get("GOLDENSKY_CUPS_QUEUE", "Goldensky-80")
 DRY_RUN = os.environ.get("GOLDENSKY_DRY_RUN") == "1"
 DRY_RUN_OUTPUT = os.environ.get("GOLDENSKY_DRY_RUN_OUTPUT", "/tmp/goldensky-etiquetas-teste.bin")
 
-# Avanço de papel (em pontos ESC/POS, múltiplos de 1 linha) aplicado entre uma
-# etiqueta e a próxima, para dar folga física ao corte. Ajustado para representar
-# ~8mm na resolução de 203 dpi (203 / 25.4 ≈ 8 dots/mm -> 8mm ≈ 64 dots).
-GAP_ENTRE_ETIQUETAS_MM = 8
-GAP_ENTRE_ETIQUETAS_DOTS = round(GAP_ENTRE_ETIQUETAS_MM * DPI / 25.4)
-
 MAX_ETIQUETAS_POR_LOTE = 100
+
+
+def _validar_dimensoes(largura_mm: float, altura_mm: float, espacamento_mm: float) -> None:
+    if not (LARGURA_MIN_MM <= largura_mm <= LARGURA_MAX_MM):
+        raise EtiquetaError(
+            f"Largura da etiqueta deve estar entre {LARGURA_MIN_MM}mm e {LARGURA_MAX_MM}mm "
+            f"(a Goldensky-80 imprime no máximo {LARGURA_MAX_MM}mm de largura)"
+        )
+    if not (ALTURA_MIN_MM <= altura_mm <= ALTURA_MAX_MM):
+        raise EtiquetaError(f"Altura da etiqueta deve estar entre {ALTURA_MIN_MM}mm e {ALTURA_MAX_MM}mm")
+    if not (ESPACAMENTO_MIN_MM <= espacamento_mm <= ESPACAMENTO_MAX_MM):
+        raise EtiquetaError(f"Espaçamento entre etiquetas deve estar entre {ESPACAMENTO_MIN_MM}mm e {ESPACAMENTO_MAX_MM}mm")
 
 
 def formatar_preco(valor) -> str:
@@ -61,32 +77,47 @@ def formatar_preco(valor) -> str:
     return f"R$ {texto}"
 
 
-def montar_pdf_etiqueta(nome: str, preco_formatado: str, codigo_barras: str) -> bytes:
-    """Gera um PDF de uma página no tamanho exato da etiqueta (60 x 30mm)."""
+def montar_pdf_etiqueta(
+        nome: str,
+        preco_formatado: str,
+        codigo_barras: str,
+        largura_mm: float = DEFAULT_LABEL_WIDTH_MM,
+        altura_mm: float = DEFAULT_LABEL_HEIGHT_MM,
+) -> bytes:
+    """Gera um PDF de uma página no tamanho exato da etiqueta.
+    O layout (posições, fontes, código de barras) foi calibrado para 60x30mm;
+    para outras dimensões, tudo escala proporcionalmente a partir desse ponto."""
     buffer = io.BytesIO()
-    largura = LABEL_WIDTH_MM * mm
-    altura = LABEL_HEIGHT_MM * mm
+    largura = largura_mm * mm
+    altura = altura_mm * mm
     c = canvas.Canvas(buffer, pagesize=(largura, altura))
 
+    escala_v = altura_mm / DEFAULT_LABEL_HEIGHT_MM
+    escala_h = largura_mm / DEFAULT_LABEL_WIDTH_MM
+
+    fonte_nome = max(6, round(8 * escala_v))
+    fonte_preco = max(7, round(9 * escala_v))
+    fonte_codigo = max(5, round(6 * escala_v))
+
     # Nome do produto — quebra em até 2 linhas se for muito comprido
-    c.setFont("Helvetica-Bold", 8)
-    max_chars = 30
+    c.setFont("Helvetica-Bold", fonte_nome)
+    max_chars = max(10, round(30 * escala_h))
     linha1, linha2 = nome[:max_chars], nome[max_chars:max_chars * 2]
-    c.drawCentredString(largura / 2, altura - 5 * mm, linha1)
+    c.drawCentredString(largura / 2, altura - 5 * mm * escala_v, linha1)
     if linha2:
-        c.drawCentredString(largura / 2, altura - 8.5 * mm, linha2)
+        c.drawCentredString(largura / 2, altura - 8.5 * mm * escala_v, linha2)
 
     # Preço
-    c.setFont("Helvetica-Bold", 9)
-    c.drawCentredString(largura / 2, altura - 12.5 * mm, preco_formatado)
+    c.setFont("Helvetica-Bold", fonte_preco)
+    c.drawCentredString(largura / 2, altura - 12.5 * mm * escala_v, preco_formatado)
 
     # Código de barras (Code128), centralizado na parte inferior da etiqueta
-    barcode = code128.Code128(codigo_barras, barHeight=10 * mm, barWidth=0.28 * mm)
+    barcode = code128.Code128(codigo_barras, barHeight=10 * mm * escala_v, barWidth=0.28 * mm * escala_h)
     barcode_largura = barcode.width
-    barcode.drawOn(c, (largura - barcode_largura) / 2, 2.5 * mm)
+    barcode.drawOn(c, (largura - barcode_largura) / 2, 2.5 * mm * escala_v)
 
-    c.setFont("Helvetica", 6)
-    c.drawCentredString(largura / 2, 1 * mm, codigo_barras)
+    c.setFont("Helvetica", fonte_codigo)
+    c.drawCentredString(largura / 2, 1 * mm * escala_v, codigo_barras)
 
     c.showPage()
     c.save()
@@ -152,11 +183,18 @@ def imagem_para_escpos(imagem: Image.Image) -> bytes:
     return bytes(comando)
 
 
-def montar_stream_escpos(etiquetas: list) -> bytes:
+def montar_stream_escpos(
+        etiquetas: list,
+        largura_mm: float = DEFAULT_LABEL_WIDTH_MM,
+        altura_mm: float = DEFAULT_LABEL_HEIGHT_MM,
+        espacamento_mm: float = DEFAULT_GAP_MM,
+) -> bytes:
     if not etiquetas:
         raise EtiquetaError("Nenhuma etiqueta informada")
     if len(etiquetas) > MAX_ETIQUETAS_POR_LOTE:
         raise EtiquetaError(f"O lote aceita no máximo {MAX_ETIQUETAS_POR_LOTE} etiquetas por requisição")
+
+    gap_dots = round(espacamento_mm * DPI / 25.4)
 
     stream = bytearray()
     stream += b"\x1b\x40"  # ESC @ — inicializa a impressora
@@ -169,13 +207,13 @@ def montar_stream_escpos(etiquetas: list) -> bytes:
         if not nome or not codigo_barras:
             raise EtiquetaError(f"Etiqueta {i + 1}: nome e código de barras são obrigatórios")
 
-        pdf_bytes = montar_pdf_etiqueta(nome, preco_formatado, codigo_barras)
+        pdf_bytes = montar_pdf_etiqueta(nome, preco_formatado, codigo_barras, largura_mm, altura_mm)
         imagem = rasterizar_pdf(pdf_bytes)
         stream += imagem_para_escpos(imagem)
 
         # avanço de papel entre etiquetas (não aplica depois da última)
         if i < len(etiquetas) - 1:
-            linhas_de_avanco = max(1, GAP_ENTRE_ETIQUETAS_DOTS // 24)
+            linhas_de_avanco = max(1, gap_dots // 24)
             stream += bytes([0x1b, 0x64, linhas_de_avanco])  # ESC d n — feed n linhas
 
     stream += bytes([0x1b, 0x64, 3])  # folga final antes do corte manual
@@ -201,10 +239,21 @@ def enviar_para_cups(dados: bytes) -> None:
         os.unlink(tmp_path)
 
 
-def imprimir_etiquetas(etiquetas: list) -> int:
+def imprimir_etiquetas(
+        etiquetas: list,
+        largura_mm: float = None,
+        altura_mm: float = None,
+        espacamento_mm: float = None,
+) -> int:
     """Monta e envia o lote de etiquetas. Retorna a quantidade impressa.
     Lança EtiquetaError com uma mensagem segura para mostrar ao usuário."""
-    dados = montar_stream_escpos(etiquetas)
+    largura_mm = largura_mm if largura_mm is not None else DEFAULT_LABEL_WIDTH_MM
+    altura_mm = altura_mm if altura_mm is not None else DEFAULT_LABEL_HEIGHT_MM
+    espacamento_mm = espacamento_mm if espacamento_mm is not None else DEFAULT_GAP_MM
+
+    _validar_dimensoes(largura_mm, altura_mm, espacamento_mm)
+
+    dados = montar_stream_escpos(etiquetas, largura_mm, altura_mm, espacamento_mm)
 
     if DRY_RUN:
         with open(DRY_RUN_OUTPUT, "wb") as f:

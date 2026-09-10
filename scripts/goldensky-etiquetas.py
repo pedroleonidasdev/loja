@@ -3,7 +3,10 @@
 Uso manual/teste do agente de etiquetas Goldensky, via linha de comando.
 
 Lê um JSON pela stdin no formato:
-  {"etiquetas": [{"nome": "...", "precoVenda": 12.5, "codigoBarras": "789..."}]}
+  {"etiquetas": [{"nome": "...", "precoVenda": 12.5, "codigoBarras": "789..."}],
+   "largura": 60, "altura": 30, "espacamento": 4}
+  largura/altura/espacamento (em mm) são opcionais — se omitidos, usa os
+  padrões calibrados (60x30mm, 4mm de espaçamento).
 
 Modo de teste (sem impressora):
   GOLDENSKY_DRY_RUN=1 ./goldensky-etiquetas.py < scripts/exemplo-etiquetas.json
@@ -37,7 +40,12 @@ def main() -> None:
     etiquetas = payload.get("etiquetas", [])
 
     try:
-        quantidade = imprimir_etiquetas(etiquetas)
+        quantidade = imprimir_etiquetas(
+            etiquetas,
+            largura_mm=payload.get("largura"),
+            altura_mm=payload.get("altura"),
+            espacamento_mm=payload.get("espacamento"),
+        )
     except EtiquetaError as e:
         erro(str(e))
         return

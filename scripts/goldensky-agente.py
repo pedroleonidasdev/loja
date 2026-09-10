@@ -17,7 +17,10 @@ Uso:
   (ou, em produção, via o serviço systemd — veja install-goldensky-etiquetas.sh)
 
 Endpoints:
-  POST /imprimir-etiquetas   body: {"etiquetas": [{"nome","precoVenda","codigoBarras"}]}
+  POST /imprimir-etiquetas   body: {"etiquetas": [{"nome","precoVenda","codigoBarras"}],
+                                     "largura": 60, "altura": 30, "espacamento": 4}
+                              largura/altura/espacamento em mm são opcionais — se
+                              omitidos, usa os padrões calibrados (60x30mm, 4mm).
   GET  /status                healthcheck simples
 
 Dependências (Linux Mint / Ubuntu):
@@ -88,8 +91,30 @@ class Handler(BaseHTTPRequestHandler):
 
         etiquetas = payload.get("etiquetas", [])
 
+        def _numero_opcional(chave):
+            valor = payload.get(chave)
+            if valor in (None, ""):
+                return None
+            try:
+                return float(valor)
+            except (TypeError, ValueError):
+                raise ValueError(chave)
+
         try:
-            quantidade = imprimir_etiquetas(etiquetas)
+            largura_mm = _numero_opcional("largura")
+            altura_mm = _numero_opcional("altura")
+            espacamento_mm = _numero_opcional("espacamento")
+        except ValueError as campo:
+            self._responder_json(400, {"mensagem": f"Valor inválido para '{campo}'"})
+            return
+
+        try:
+            quantidade = imprimir_etiquetas(
+                etiquetas,
+                largura_mm=largura_mm,
+                altura_mm=altura_mm,
+                espacamento_mm=espacamento_mm,
+            )
         except EtiquetaError as e:
             self._responder_json(422, {"mensagem": str(e)})
             return
