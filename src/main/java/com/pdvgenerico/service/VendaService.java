@@ -72,15 +72,25 @@ public class VendaService {
             itens.add(item);
         }
 
-        // O percentual de desconto é sempre validado e recalculado no servidor;
-        // o valor enviado pelo cliente nunca é usado diretamente como valor monetário.
-        BigDecimal percentualDesconto = request.percentualDesconto() != null
-                ? request.percentualDesconto()
+        // Desconto: se vier valor em dinheiro, ele tem prioridade; senão, usa o percentual.
+        BigDecimal valorDescontoInformado = request.valorDescontoInformado() != null
+                ? request.valorDescontoInformado()
                 : BigDecimal.ZERO;
 
-        BigDecimal valorDesconto = subtotal
-                .multiply(percentualDesconto)
-                .divide(CEM, 2, RoundingMode.HALF_UP);
+        BigDecimal percentualDesconto;
+        BigDecimal valorDesconto;
+
+        if (valorDescontoInformado.compareTo(BigDecimal.ZERO) > 0) {
+            valorDesconto = valorDescontoInformado.min(subtotal); // nunca deixa o total ficar negativo
+            percentualDesconto = BigDecimal.ZERO;
+        } else {
+            percentualDesconto = request.percentualDesconto() != null
+                    ? request.percentualDesconto()
+                    : BigDecimal.ZERO;
+            valorDesconto = subtotal
+                    .multiply(percentualDesconto)
+                    .divide(CEM, 2, RoundingMode.HALF_UP);
+        }
 
         BigDecimal total = subtotal.subtract(valorDesconto);
 

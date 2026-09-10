@@ -16,6 +16,8 @@ public record VendaRequest(
         @DecimalMin(value = "0.0", message = "Desconto não pode ser negativo")
         @DecimalMax(value = "100.0", message = "Desconto não pode ser maior que 100%")
         BigDecimal percentualDesconto,
+        @DecimalMin(value = "0.0", message = "Desconto não pode ser negativo")
+        BigDecimal valorDescontoInformado,
         @NotEmpty @Valid List<ItemVendaRequest> itens
 ) {
     public record ItemVendaRequest(
