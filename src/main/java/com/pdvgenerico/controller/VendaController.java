@@ -1,5 +1,6 @@
 package com.pdvgenerico.controller;
 
+import com.pdvgenerico.dto.EditarDataHoraRequest;
 import com.pdvgenerico.dto.EditarFormaPagamentoRequest;
 import com.pdvgenerico.dto.VendaRequest;
 import com.pdvgenerico.dto.VendaResponse;
@@ -57,6 +58,16 @@ public class VendaController {
                                                @Valid @RequestBody EditarFormaPagamentoRequest request,
                                                @AuthenticationPrincipal Usuario usuarioLogado) {
         return VendaResponse.fromEntity(vendaService.editarFormaPagamento(id, request, usuarioLogado));
+    }
+
+    // corrige a data/hora de uma venda já registrada. Restrito a ADMIN — sem o
+    // fluxo de autorização por login/senha que existe em forma-pagamento, já que
+    // aqui só o próprio administrador logado pode acionar a edição.
+    @PutMapping("/{id}/data-hora")
+    @PreAuthorize("hasRole('ADMIN')")
+    public VendaResponse editarDataHora(@PathVariable Long id,
+                                         @Valid @RequestBody EditarDataHoraRequest request) {
+        return VendaResponse.fromEntity(vendaService.editarDataHora(id, request));
     }
 
     @DeleteMapping("/{id}")

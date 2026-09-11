@@ -1,5 +1,6 @@
 package com.pdvgenerico.service;
 
+import com.pdvgenerico.dto.EditarDataHoraRequest;
 import com.pdvgenerico.dto.EditarFormaPagamentoRequest;
 import com.pdvgenerico.dto.VendaRequest;
 import com.pdvgenerico.exception.BusinessException;
@@ -171,6 +172,20 @@ public class VendaService {
                 .formaPagamento(request.formaPagamento())
                 .valor(venda.getTotal())
                 .build());
+        return vendaRepository.save(venda);
+    }
+
+    /**
+     * Corrige a data/hora de uma venda já registrada (ex: venda lançada com atraso
+     * ou digitada no dia errado). Diferente de editarFormaPagamento, aqui não existe
+     * fluxo de autorização por login/senha para outros perfis: a restrição é só
+     * ADMIN, garantida pelo @PreAuthorize no controller — quem chega até aqui já
+     * está autenticado como administrador.
+     */
+    @Transactional
+    public Venda editarDataHora(Long id, EditarDataHoraRequest request) {
+        Venda venda = buscarPorId(id);
+        venda.setDataHora(request.dataHora());
         return vendaRepository.save(venda);
     }
 
