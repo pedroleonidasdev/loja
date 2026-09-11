@@ -2,7 +2,8 @@ package com.pdvgenerico.service;
 
 import com.pdvgenerico.dto.RelatorioVendasResponse;
 import com.pdvgenerico.model.ItemVenda;
-import com.pdvgenerico.model.Venda;\nimport com.pdvgenerico.model.PagamentoVenda;
+import com.pdvgenerico.model.Venda;
+import com.pdvgenerico.model.PagamentoVenda;
 import com.pdvgenerico.repository.VendaRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
