@@ -12,12 +12,13 @@ import java.math.BigDecimal;
 import java.util.List;
 
 public record VendaRequest(
-        @NotNull FormaPagamento formaPagamento,
+        FormaPagamento formaPagamento,
         @DecimalMin(value = "0.0", message = "Desconto não pode ser negativo")
         @DecimalMax(value = "100.0", message = "Desconto não pode ser maior que 100%")
         BigDecimal percentualDesconto,
         @DecimalMin(value = "0.0", message = "Desconto não pode ser negativo")
         BigDecimal valorDescontoInformado,
+        @Valid List<PagamentoVendaRequest> pagamentos,
         @NotEmpty @Valid List<ItemVendaRequest> itens
 ) {
     public record ItemVendaRequest(

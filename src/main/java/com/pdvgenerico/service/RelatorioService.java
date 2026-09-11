@@ -2,7 +2,7 @@ package com.pdvgenerico.service;
 
 import com.pdvgenerico.dto.RelatorioVendasResponse;
 import com.pdvgenerico.model.ItemVenda;
-import com.pdvgenerico.model.Venda;
+import com.pdvgenerico.model.Venda;\nimport com.pdvgenerico.model.PagamentoVenda;
 import com.pdvgenerico.repository.VendaRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -27,11 +27,16 @@ public class RelatorioService {
                 .map(Venda::getTotal)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        Map<String, BigDecimal> totalPorFormaPagamento = vendas.stream()
-                .collect(Collectors.groupingBy(
-                        v -> v.getFormaPagamento().name(),
-                        Collectors.reducing(BigDecimal.ZERO, Venda::getTotal, BigDecimal::add)
-                ));
+        Map<String, BigDecimal> totalPorFormaPagamento = new java.util.HashMap<>();
+        for (Venda venda : vendas) {
+            if (venda.getPagamentos() == null || venda.getPagamentos().isEmpty()) {
+                totalPorFormaPagamento.merge(venda.getFormaPagamento().name(), venda.getTotal(), BigDecimal::add);
+            } else {
+                for (PagamentoVenda pagamento : venda.getPagamentos()) {
+                    totalPorFormaPagamento.merge(pagamento.getFormaPagamento().name(), pagamento.getValor(), BigDecimal::add);
+                }
+            }
+        }
 
         List<ItemVenda> todosItens = vendas.stream()
                 .flatMap(v -> v.getItens().stream())

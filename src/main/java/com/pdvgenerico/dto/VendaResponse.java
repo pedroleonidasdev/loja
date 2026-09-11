@@ -15,7 +15,8 @@ public record VendaResponse(
         BigDecimal percentualDesconto,
         BigDecimal valorDesconto,
         BigDecimal total,
-        List<ItemVendaResponse> itens
+        List<ItemVendaResponse> itens,
+        List<PagamentoVendaResponse> pagamentos
 ) {
     public static VendaResponse fromEntity(Venda venda) {
         return new VendaResponse(
@@ -27,7 +28,8 @@ public record VendaResponse(
                 venda.getPercentualDesconto(),
                 venda.getValorDesconto(),
                 venda.getTotal(),
-                venda.getItens().stream().map(ItemVendaResponse::fromEntity).toList()
+                venda.getItens().stream().map(ItemVendaResponse::fromEntity).toList(),
+                venda.getPagamentos().stream().map(PagamentoVendaResponse::fromEntity).toList()
         );
     }
 }

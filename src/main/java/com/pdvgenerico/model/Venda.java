@@ -51,4 +51,8 @@ public class Venda {
     @Builder.Default
     private List<ItemVenda> itens = new ArrayList<>();
 
+    @OneToMany(mappedBy = "venda", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<PagamentoVenda> pagamentos = new ArrayList<>();
+
 }

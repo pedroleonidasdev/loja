@@ -43,7 +43,7 @@ public class VendaService {
                 // Se usássemos LocalDateTime.now() puro, o valor mudaria de significado conforme
                 // o fuso do host (ex: máquina local em Brasília vs. servidor em UTC no Render).
                 .dataHora(LocalDateTime.now(ZoneOffset.UTC))
-                .formaPagamento(request.formaPagamento())
+                .formaPagamento(request.formaPagamento() == null ? FormaPagamento.MULTIPLO : request.formaPagamento())
                 .total(BigDecimal.ZERO)
                 .build();
 
@@ -96,6 +96,43 @@ public class VendaService {
         venda.setValorDesconto(valorDesconto);
         venda.setTotal(total);
 
+        List<com.pdvgenerico.dto.PagamentoVendaRequest> pagamentosRequest = request.pagamentos();
+        if (pagamentosRequest == null || pagamentosRequest.isEmpty()) {
+            if (request.formaPagamento() == null || request.formaPagamento() == FormaPagamento.MULTIPLO) {
+                throw new BusinessException("Informe pelo menos uma forma de pagamento.");
+            }
+            pagamentosRequest = List.of(new com.pdvgenerico.dto.PagamentoVendaRequest(request.formaPagamento(), total));
+        }
+
+        BigDecimal totalPago = BigDecimal.ZERO;
+        List<PagamentoVenda> pagamentos = new ArrayList<>();
+        for (var pagamentoReq : pagamentosRequest) {
+            if (pagamentoReq.formaPagamento() == null || pagamentoReq.formaPagamento() == FormaPagamento.MULTIPLO) {
+                throw new BusinessException("Forma de pagamento inválida.");
+            }
+            if (pagamentoReq.valor() == null || pagamentoReq.valor().signum() <= 0) {
+                throw new BusinessException("Cada pagamento deve ter valor maior que zero.");
+            }
+            BigDecimal valor = pagamentoReq.valor().setScale(2, RoundingMode.HALF_UP);
+            totalPago = totalPago.add(valor);
+            pagamentos.add(PagamentoVenda.builder()
+                    .venda(venda)
+                    .formaPagamento(pagamentoReq.formaPagamento())
+                    .valor(valor)
+                    .build());
+        }
+
+        totalPago = totalPago.setScale(2, RoundingMode.HALF_UP);
+        BigDecimal totalVenda = total.setScale(2, RoundingMode.HALF_UP);
+        if (totalPago.compareTo(totalVenda) != 0) {
+            throw new BusinessException("A soma dos pagamentos deve ser exatamente " + totalVenda + ".");
+        }
+
+        venda.setFormaPagamento(pagamentos.size() == 1
+                ? pagamentos.get(0).getFormaPagamento()
+                : FormaPagamento.MULTIPLO);
+        venda.setPagamentos(pagamentos);
+
         return vendaRepository.save(venda);
     }
 
@@ -128,6 +165,12 @@ public class VendaService {
         }
 
         venda.setFormaPagamento(request.formaPagamento());
+        venda.getPagamentos().clear();
+        venda.getPagamentos().add(PagamentoVenda.builder()
+                .venda(venda)
+                .formaPagamento(request.formaPagamento())
+                .valor(venda.getTotal())
+                .build());
         return vendaRepository.save(venda);
     }
 
