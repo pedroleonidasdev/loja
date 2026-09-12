@@ -8,6 +8,8 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Registro de saída (DESPESA/SANGRIA) ou entrada (SUPRIMENTO) financeira fora
@@ -39,6 +41,11 @@ public class Despesa {
     @Column(length = 60)
     private String categoria;
 
+    // nome de quem forneceu o produto/serviço (ex: nome da loja/fornecedor). Só
+    // faz sentido pra tipo=DESPESA; opcional.
+    @Column(length = 120)
+    private String fornecedor;
+
     @Column(nullable = false, length = 255)
     private String descricao;
 
@@ -53,9 +60,21 @@ public class Despesa {
     private LocalDateTime dataHora;
 
     // preenchido só quando a despesa foi parcelada (ex: cheque em 5x, cartão
-    // parcelado). Nulo/1 = à vista, sem parcelamento.
+    // parcelado). Nulo/1 = à vista, sem parcelamento. Quando `parcelas` abaixo
+    // vem detalhado (com data/valor por parcela), este número é sempre
+    // parcelas.size() — mantido separado por compatibilidade com lançamentos
+    // antigos que só tinham a quantidade, sem o detalhamento.
     @Column(name = "numero_parcelas")
     private Integer numeroParcelas;
+
+    // detalhamento opcional de cada parcela (data de vencimento + valor). Se
+    // vazio, a despesa foi lançada só com a quantidade de parcelas (numeroParcelas),
+    // sem detalhar datas/valores individuais.
+    @ElementCollection
+    @CollectionTable(name = "despesa_parcelas", joinColumns = @JoinColumn(name = "despesa_id"))
+    @OrderColumn(name = "ordem")
+    @Builder.Default
+    private List<Parcela> parcelas = new ArrayList<>();
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "usuario_id", nullable = false)

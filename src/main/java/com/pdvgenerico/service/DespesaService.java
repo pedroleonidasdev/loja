@@ -2,6 +2,7 @@ package com.pdvgenerico.service;
 
 import com.pdvgenerico.dto.DespesaRequest;
 import com.pdvgenerico.dto.EditarDespesaRequest;
+import com.pdvgenerico.dto.ParcelaRequest;
 import com.pdvgenerico.exception.BusinessException;
 import com.pdvgenerico.exception.ResourceNotFoundException;
 import com.pdvgenerico.model.*;
@@ -12,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -55,9 +57,12 @@ public class DespesaService {
             throw new BusinessException("Informe a categoria da despesa (ex: Aluguel, Fornecedor, Energia).");
         }
 
+        List<Parcela> parcelas = construirParcelas(request.parcelas());
+
         Despesa despesa = Despesa.builder()
                 .tipo(request.tipo())
                 .categoria(request.categoria())
+                .fornecedor(request.fornecedor())
                 .descricao(request.descricao())
                 .valor(request.valor())
                 .formaPagamento(formaPagamento)
@@ -66,17 +71,17 @@ public class DespesaService {
                 // só vincula ao caixa quando o dinheiro realmente sai/entra da gaveta —
                 // isso é o que a conferência de caixa em Relatórios usa depois
                 .caixa(formaPagamento == FormaPagamento.DINHEIRO ? caixaAberto.orElse(null) : null)
-                .numeroParcelas(request.numeroParcelas())
+                .numeroParcelas(!parcelas.isEmpty() ? parcelas.size() : request.numeroParcelas())
+                .parcelas(parcelas)
                 .build();
 
         return despesaRepository.save(despesa);
     }
 
     /**
-     * Corrige categoria, descrição, valor, forma de pagamento e parcelamento de
-     * um lançamento já registrado (ex: número de parcelas do cheque lançado
-     * errado). O tipo do lançamento e o vínculo com o caixa em que foi aberto
-     * não mudam aqui — ver EditarDespesaRequest.
+     * Corrige categoria, fornecedor, descrição, valor, forma de pagamento e
+     * parcelamento de um lançamento já registrado. O tipo do lançamento e o
+     * vínculo com o caixa em que foi aberto não mudam aqui — ver EditarDespesaRequest.
      */
     @Transactional
     public Despesa editar(Long id, EditarDespesaRequest request) {
@@ -93,13 +98,38 @@ public class DespesaService {
             throw new BusinessException("Informe a categoria da despesa (ex: Aluguel, Fornecedor, Energia).");
         }
 
+        List<Parcela> parcelas = construirParcelas(request.parcelas());
+
         despesa.setCategoria(request.categoria());
+        despesa.setFornecedor(request.fornecedor());
         despesa.setDescricao(request.descricao());
         despesa.setValor(request.valor());
         despesa.setFormaPagamento(formaPagamento);
-        despesa.setNumeroParcelas(request.numeroParcelas());
+        despesa.setNumeroParcelas(!parcelas.isEmpty() ? parcelas.size() : request.numeroParcelas());
+
+        // limpa a coleção existente em vez de trocar a referência: é o jeito
+        // seguro de fazer o Hibernate apagar as linhas antigas de despesa_parcelas
+        // (@ElementCollection) antes de gravar as novas.
+        despesa.getParcelas().clear();
+        despesa.getParcelas().addAll(parcelas);
 
         return despesaRepository.save(despesa);
+    }
+
+    private List<Parcela> construirParcelas(List<ParcelaRequest> parcelasRequest) {
+        List<Parcela> parcelas = new ArrayList<>();
+        if (parcelasRequest == null) {
+            return parcelas;
+        }
+        int numero = 1;
+        for (ParcelaRequest p : parcelasRequest) {
+            parcelas.add(Parcela.builder()
+                    .numero(numero++)
+                    .dataVencimento(p.dataVencimento())
+                    .valor(p.valor())
+                    .build());
+        }
+        return parcelas;
     }
 
     @Transactional
