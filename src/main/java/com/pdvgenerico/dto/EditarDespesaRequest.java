@@ -1,7 +1,6 @@
 package com.pdvgenerico.dto;
 
 import com.pdvgenerico.model.FormaPagamento;
-import com.pdvgenerico.model.TipoDespesa;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -10,10 +9,10 @@ import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 
-public record DespesaRequest(
-        @NotNull(message = "Informe o tipo: despesa, sangria ou suprimento")
-        TipoDespesa tipo,
-
+// Edição de um lançamento já registrado. O tipo (DESPESA/SANGRIA/SUPRIMENTO)
+// não muda depois de criado — mexe com o vínculo do lançamento com o caixa e
+// com a conferência de gaveta em Relatórios, então fica de fora daqui.
+public record EditarDespesaRequest(
         @Size(max = 60, message = "Categoria deve ter no máximo 60 caracteres")
         String categoria,
 
@@ -24,13 +23,9 @@ public record DespesaRequest(
         @NotNull @Positive(message = "Valor deve ser maior que zero")
         BigDecimal valor,
 
-        // Obrigatória apenas para tipo=DESPESA. Para SANGRIA/SUPRIMENTO o backend
-        // sempre força DINHEIRO, independente do que vier aqui — dinheiro é a
-        // única forma que sai/entra fisicamente na gaveta.
+        // Ignorada para SANGRIA/SUPRIMENTO — o backend sempre mantém DINHEIRO.
         FormaPagamento formaPagamento,
 
-        // Opcional: em quantas vezes a despesa foi parcelada (ex: cheque em 5x).
-        // Nulo/ausente = à vista.
         @Min(value = 1, message = "Número de parcelas deve ser pelo menos 1")
         Integer numeroParcelas
 ) {

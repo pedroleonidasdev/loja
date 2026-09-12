@@ -2,6 +2,7 @@ package com.pdvgenerico.controller;
 
 import com.pdvgenerico.dto.DespesaRequest;
 import com.pdvgenerico.dto.DespesaResponse;
+import com.pdvgenerico.dto.EditarDespesaRequest;
 import com.pdvgenerico.model.Despesa;
 import com.pdvgenerico.model.Usuario;
 import com.pdvgenerico.service.DespesaService;
@@ -41,6 +42,12 @@ public class DespesaController {
                 ? despesaService.listarPorPeriodo(inicio, fim)
                 : despesaService.listarTodas();
         return despesas.stream().map(DespesaResponse::fromEntity).toList();
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<DespesaResponse> editar(@PathVariable Long id,
+                                                   @Valid @RequestBody EditarDespesaRequest request) {
+        return ResponseEntity.ok(DespesaResponse.fromEntity(despesaService.editar(id, request)));
     }
 
     @DeleteMapping("/{id}")

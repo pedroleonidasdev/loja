@@ -52,6 +52,11 @@ public class Despesa {
     @Column(nullable = false)
     private LocalDateTime dataHora;
 
+    // preenchido só quando a despesa foi parcelada (ex: cheque em 5x, cartão
+    // parcelado). Nulo/1 = à vista, sem parcelamento.
+    @Column(name = "numero_parcelas")
+    private Integer numeroParcelas;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "usuario_id", nullable = false)
     private Usuario usuario;

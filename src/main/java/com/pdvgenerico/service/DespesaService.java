@@ -1,6 +1,7 @@
 package com.pdvgenerico.service;
 
 import com.pdvgenerico.dto.DespesaRequest;
+import com.pdvgenerico.dto.EditarDespesaRequest;
 import com.pdvgenerico.exception.BusinessException;
 import com.pdvgenerico.exception.ResourceNotFoundException;
 import com.pdvgenerico.model.*;
@@ -65,7 +66,38 @@ public class DespesaService {
                 // só vincula ao caixa quando o dinheiro realmente sai/entra da gaveta —
                 // isso é o que a conferência de caixa em Relatórios usa depois
                 .caixa(formaPagamento == FormaPagamento.DINHEIRO ? caixaAberto.orElse(null) : null)
+                .numeroParcelas(request.numeroParcelas())
                 .build();
+
+        return despesaRepository.save(despesa);
+    }
+
+    /**
+     * Corrige categoria, descrição, valor, forma de pagamento e parcelamento de
+     * um lançamento já registrado (ex: número de parcelas do cheque lançado
+     * errado). O tipo do lançamento e o vínculo com o caixa em que foi aberto
+     * não mudam aqui — ver EditarDespesaRequest.
+     */
+    @Transactional
+    public Despesa editar(Long id, EditarDespesaRequest request) {
+        Despesa despesa = despesaRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Despesa não encontrada."));
+
+        boolean movimentoDeCaixa = despesa.getTipo() != TipoDespesa.DESPESA;
+        FormaPagamento formaPagamento = movimentoDeCaixa ? FormaPagamento.DINHEIRO : request.formaPagamento();
+
+        if (formaPagamento == null) {
+            throw new BusinessException("Informe a forma de pagamento da despesa.");
+        }
+        if (despesa.getTipo() == TipoDespesa.DESPESA && (request.categoria() == null || request.categoria().isBlank())) {
+            throw new BusinessException("Informe a categoria da despesa (ex: Aluguel, Fornecedor, Energia).");
+        }
+
+        despesa.setCategoria(request.categoria());
+        despesa.setDescricao(request.descricao());
+        despesa.setValor(request.valor());
+        despesa.setFormaPagamento(formaPagamento);
+        despesa.setNumeroParcelas(request.numeroParcelas());
 
         return despesaRepository.save(despesa);
     }

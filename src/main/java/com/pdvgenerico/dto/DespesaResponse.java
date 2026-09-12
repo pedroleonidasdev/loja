@@ -14,7 +14,8 @@ public record DespesaResponse(
         String formaPagamento,
         LocalDateTime dataHora,
         String usuarioNome,
-        Long caixaId
+        Long caixaId,
+        Integer numeroParcelas
 ) {
     public static DespesaResponse fromEntity(Despesa despesa) {
         return new DespesaResponse(
@@ -26,7 +27,8 @@ public record DespesaResponse(
                 despesa.getFormaPagamento().name(),
                 despesa.getDataHora(),
                 despesa.getUsuario().getNome(),
-                despesa.getCaixa() != null ? despesa.getCaixa().getId() : null
+                despesa.getCaixa() != null ? despesa.getCaixa().getId() : null,
+                despesa.getNumeroParcelas()
         );
     }
 }
