@@ -25,6 +25,12 @@ public class CaixaService {
         return caixaRepository.findByAbertoTrue();
     }
 
+    // usado pela tela de Fechar Caixa pra oferecer "reabrir" mesmo pro operador
+    // (que não tem acesso à listagem completa de caixas, restrita a ADMIN)
+    public Optional<Caixa> buscarUltimoFechado() {
+        return caixaRepository.findFirstByAbertoFalseOrderByDataFechamentoDesc();
+    }
+
     public List<Caixa> listarPorPeriodo(LocalDateTime inicio, LocalDateTime fim) {
         return caixaRepository.findByDataAberturaBetweenOrderByDataAberturaDesc(inicio, fim);
     }
