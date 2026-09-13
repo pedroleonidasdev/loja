@@ -31,14 +31,12 @@ public class CaixaController {
                 .orElseGet(() -> ResponseEntity.noContent().build());
     }
 
-    // usado pela tela de Fechar Caixa pra oferecer a opção de reabrir, sem exigir
-    // acesso à listagem completa (essa sim restrita a ADMIN, ver /caixa abaixo)
-    @GetMapping("/ultimo-fechado")
-    @PreAuthorize("hasAnyRole('ADMIN', 'CAIXA')")
-    public ResponseEntity<CaixaResponse> ultimoFechado() {
-        return caixaService.buscarUltimoFechado()
-                .map(caixa -> ResponseEntity.ok(CaixaResponse.fromEntity(caixa)))
-                .orElseGet(() -> ResponseEntity.noContent().build());
+    // usado pela tela de Reabrir Caixa — lista os fechados hoje/ontem, dentro da
+    // janela que o service aceita reabrir (ver CaixaService.reabrir)
+    @GetMapping("/fechados-recentes")
+    @PreAuthorize("hasRole('ADMIN')")
+    public List<CaixaResponse> fechadosRecentes() {
+        return caixaService.listarFechadosRecentes().stream().map(CaixaResponse::fromEntity).toList();
     }
 
     @GetMapping
@@ -68,11 +66,10 @@ public class CaixaController {
         return ResponseEntity.ok(CaixaResponse.fromEntity(caixaService.fechar(request, usuarioLogado)));
     }
 
-    // Reabertura corrige um fechamento feito por engano. Mesma regra de permissão
-    // do fechamento (ADMIN ou CAIXA) — só funciona pro caixa fechado mais recente
-    // (validado no service via CaixaService.reabrir).
+    // Reabertura é restrita a ADMIN, e só para caixas fechados hoje ou ontem
+    // (ver regra completa em CaixaService.reabrir).
     @PostMapping("/{id}/reabrir")
-    @PreAuthorize("hasAnyRole('ADMIN', 'CAIXA')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<CaixaResponse> reabrir(@PathVariable Long id,
                                                   @AuthenticationPrincipal Usuario usuarioLogado) {
         return ResponseEntity.ok(CaixaResponse.fromEntity(caixaService.reabrir(id, usuarioLogado)));

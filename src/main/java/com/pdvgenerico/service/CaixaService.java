@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -19,16 +20,26 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class CaixaService {
 
+    // Brasília = UTC-3 (sem horário de verão desde 2019) — mesmo padrão usado no frontend
+    private static final int OFFSET_BRASILIA_HORAS = 3;
+
     private final CaixaRepository caixaRepository;
 
     public Optional<Caixa> buscarCaixaAberto() {
         return caixaRepository.findByAbertoTrue();
     }
 
-    // usado pela tela de Fechar Caixa pra oferecer "reabrir" mesmo pro operador
-    // (que não tem acesso à listagem completa de caixas, restrita a ADMIN)
-    public Optional<Caixa> buscarUltimoFechado() {
-        return caixaRepository.findFirstByAbertoFalseOrderByDataFechamentoDesc();
+    // usado pela tela de Reabrir Caixa: lista os fechados hoje/ontem (mesma janela
+    // que o service aceita reabrir), pra o ADMIN escolher qual reabrir
+    public List<Caixa> listarFechadosRecentes() {
+        LocalDateTime agoraUtc = LocalDateTime.now(ZoneOffset.UTC);
+        LocalDate hojeBrasilia = agoraUtc.minusHours(OFFSET_BRASILIA_HORAS).toLocalDate();
+        LocalDateTime inicioJanela = hojeBrasilia.minusDays(1).atStartOfDay().plusHours(OFFSET_BRASILIA_HORAS);
+        LocalDateTime fimJanela = hojeBrasilia.plusDays(1).atStartOfDay().plusHours(OFFSET_BRASILIA_HORAS);
+
+        return caixaRepository.findByDataFechamentoBetweenAndAbertoFalseOrderByDataFechamentoDesc(
+                inicioJanela, fimJanela
+        );
     }
 
     public List<Caixa> listarPorPeriodo(LocalDateTime inicio, LocalDateTime fim) {
@@ -67,8 +78,8 @@ public class CaixaService {
     }
 
     // Reabertura é restrita a ADMIN (ver @PreAuthorize no controller) e só é
-    // permitida para o caixa fechado mais recente, pra não bagunçar o histórico
-    // reabrindo um caixa antigo enquanto outros mais novos já foram fechados.
+    // permitida para caixas fechados hoje ou ontem (fuso de Brasília) — evita
+    // reabrir algo muito antigo e desalinhar o histórico/relatórios já fechados.
     @Transactional
     public Caixa reabrir(Long id, Usuario usuarioLogado) {
         if (caixaRepository.findByAbertoTrue().isPresent()) {
@@ -81,12 +92,15 @@ public class CaixaService {
         if (caixa.isAberto()) {
             throw new BusinessException("Este caixa já está aberto.");
         }
+        if (caixa.getDataFechamento() == null) {
+            throw new BusinessException("Este caixa não tem data de fechamento registrada.");
+        }
 
-        Caixa ultimoFechado = caixaRepository.findFirstByAbertoFalseOrderByDataFechamentoDesc()
-                .orElseThrow(() -> new ResourceNotFoundException("Não há caixa fechado para reabrir."));
+        LocalDate hojeBrasilia = LocalDateTime.now(ZoneOffset.UTC).minusHours(OFFSET_BRASILIA_HORAS).toLocalDate();
+        LocalDate fechamentoBrasilia = caixa.getDataFechamento().minusHours(OFFSET_BRASILIA_HORAS).toLocalDate();
 
-        if (!ultimoFechado.getId().equals(caixa.getId())) {
-            throw new BusinessException("Só é possível reabrir o caixa fechado mais recente.");
+        if (fechamentoBrasilia.isBefore(hojeBrasilia.minusDays(1)) || fechamentoBrasilia.isAfter(hojeBrasilia)) {
+            throw new BusinessException("Só é possível reabrir caixas fechados hoje ou ontem.");
         }
 
         caixa.setAberto(true);

@@ -13,7 +13,9 @@ public interface CaixaRepository extends JpaRepository<Caixa, Long> {
 
     List<Caixa> findByDataAberturaBetweenOrderByDataAberturaDesc(LocalDateTime inicio, LocalDateTime fim);
 
-    // usado para restringir a reabertura ao caixa fechado mais recente, evitando
-    // que se reabra um caixa antigo do histórico "fora de ordem"
-    Optional<Caixa> findFirstByAbertoFalseOrderByDataFechamentoDesc();
+    // usado pela tela de Reabrir Caixa (só ADMIN): caixas fechados na janela de
+    // hoje/ontem, candidatos a reabertura
+    List<Caixa> findByDataFechamentoBetweenAndAbertoFalseOrderByDataFechamentoDesc(
+            LocalDateTime inicio, LocalDateTime fim
+    );
 }
