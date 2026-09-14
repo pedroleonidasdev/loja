@@ -71,7 +71,10 @@ public class DespesaService {
                 // só vincula ao caixa quando o dinheiro realmente sai/entra da gaveta —
                 // isso é o que a conferência de caixa em Relatórios usa depois
                 .caixa(formaPagamento == FormaPagamento.DINHEIRO ? caixaAberto.orElse(null) : null)
-                .numeroParcelas(!parcelas.isEmpty() ? parcelas.size() : request.numeroParcelas())
+                // Integer.valueOf() nos dois lados do ternário: se misturar int com Integer
+                // aqui, o Java sempre faz unboxing do lado Integer (mesmo quando não é o
+                // escolhido em tempo de execução) — se vier null (à vista, sem parcelas), estoura NPE.
+                .numeroParcelas(!parcelas.isEmpty() ? Integer.valueOf(parcelas.size()) : request.numeroParcelas())
                 .parcelas(parcelas)
                 .build();
 
@@ -105,7 +108,9 @@ public class DespesaService {
         despesa.setDescricao(request.descricao());
         despesa.setValor(request.valor());
         despesa.setFormaPagamento(formaPagamento);
-        despesa.setNumeroParcelas(!parcelas.isEmpty() ? parcelas.size() : request.numeroParcelas());
+        // mesmo cuidado do registrar(): Integer.valueOf() nos dois lados evita NPE
+        // de unboxing quando request.numeroParcelas() vem null (à vista).
+        despesa.setNumeroParcelas(!parcelas.isEmpty() ? Integer.valueOf(parcelas.size()) : request.numeroParcelas());
 
         // limpa a coleção existente em vez de trocar a referência: é o jeito
         // seguro de fazer o Hibernate apagar as linhas antigas de despesa_parcelas
