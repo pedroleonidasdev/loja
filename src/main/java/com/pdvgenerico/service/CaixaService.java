@@ -25,8 +25,12 @@ public class CaixaService {
 
     private final CaixaRepository caixaRepository;
 
+    // Usa a lista ordenada por data de abertura em vez de findByAbertoTrue()
+    // (Optional): se existir mais de um caixa com aberto=true no banco (dado
+    // inconsistente), pega o mais recente em vez de quebrar com 500.
     public Optional<Caixa> buscarCaixaAberto() {
-        return caixaRepository.findByAbertoTrue();
+        List<Caixa> abertos = caixaRepository.findByAbertoTrueOrderByDataAberturaDesc();
+        return abertos.isEmpty() ? Optional.empty() : Optional.of(abertos.get(0));
     }
 
     // usado pela tela de Reabrir Caixa: lista os fechados hoje/ontem (mesma janela
@@ -48,7 +52,7 @@ public class CaixaService {
 
     @Transactional
     public Caixa abrir(CaixaRequest request, Usuario usuarioLogado) {
-        if (caixaRepository.findByAbertoTrue().isPresent()) {
+        if (buscarCaixaAberto().isPresent()) {
             throw new BusinessException("Já existe um caixa aberto. Feche o caixa atual antes de abrir um novo.");
         }
 
@@ -66,7 +70,7 @@ public class CaixaService {
 
     @Transactional
     public Caixa fechar(CaixaRequest.FechamentoRequest request, Usuario usuarioLogado) {
-        Caixa caixa = caixaRepository.findByAbertoTrue()
+        Caixa caixa = buscarCaixaAberto()
                 .orElseThrow(() -> new ResourceNotFoundException("Não há caixa aberto no momento."));
 
         caixa.setUsuarioFechamento(usuarioLogado);
@@ -82,7 +86,7 @@ public class CaixaService {
     // reabrir algo muito antigo e desalinhar o histórico/relatórios já fechados.
     @Transactional
     public Caixa reabrir(Long id, Usuario usuarioLogado) {
-        if (caixaRepository.findByAbertoTrue().isPresent()) {
+        if (buscarCaixaAberto().isPresent()) {
             throw new BusinessException("Já existe um caixa aberto. Feche o caixa atual antes de reabrir outro.");
         }
 
