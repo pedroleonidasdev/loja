@@ -85,8 +85,10 @@ def montar_pdf_etiqueta(
         altura_mm: float = DEFAULT_LABEL_HEIGHT_MM,
 ) -> bytes:
     """Gera um PDF de uma página no tamanho exato da etiqueta.
-    O layout (posições, fontes, código de barras) foi calibrado para 60x30mm;
-    para outras dimensões, tudo escala proporcionalmente a partir desse ponto."""
+    O layout (posições, fontes, código de barras) foi calibrado para 60x30mm,
+    compacto e com o código de barras fino, para caber bem na bobina de
+    etiquetas de preço; para outras dimensões, tudo escala proporcionalmente
+    a partir desse ponto."""
     buffer = io.BytesIO()
     largura = largura_mm * mm
     altura = altura_mm * mm
@@ -103,21 +105,21 @@ def montar_pdf_etiqueta(
     c.setFont("Helvetica-Bold", fonte_nome)
     max_chars = max(10, round(30 * escala_h))
     linha1, linha2 = nome[:max_chars], nome[max_chars:max_chars * 2]
-    c.drawCentredString(largura / 2, altura - 5 * mm * escala_v, linha1)
+    c.drawCentredString(largura / 2, altura - 4.2 * mm * escala_v, linha1)
     if linha2:
-        c.drawCentredString(largura / 2, altura - 8.5 * mm * escala_v, linha2)
+        c.drawCentredString(largura / 2, altura - 7.4 * mm * escala_v, linha2)
 
     # Preço
     c.setFont("Helvetica-Bold", fonte_preco)
-    c.drawCentredString(largura / 2, altura - 12.5 * mm * escala_v, preco_formatado)
+    c.drawCentredString(largura / 2, altura - 11 * mm * escala_v, preco_formatado)
 
-    # Código de barras (Code128), centralizado na parte inferior da etiqueta
-    barcode = code128.Code128(codigo_barras, barHeight=10 * mm * escala_v, barWidth=0.28 * mm * escala_h)
+    # Código de barras (Code128) fino, centralizado na parte inferior da etiqueta
+    barcode = code128.Code128(codigo_barras, barHeight=11 * mm * escala_v, barWidth=0.22 * mm * escala_h)
     barcode_largura = barcode.width
-    barcode.drawOn(c, (largura - barcode_largura) / 2, 2.5 * mm * escala_v)
+    barcode.drawOn(c, (largura - barcode_largura) / 2, 2 * mm * escala_v)
 
     c.setFont("Helvetica", fonte_codigo)
-    c.drawCentredString(largura / 2, 1 * mm * escala_v, codigo_barras)
+    c.drawCentredString(largura / 2, 0.6 * mm * escala_v, codigo_barras)
 
     c.showPage()
     c.save()
