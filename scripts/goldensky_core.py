@@ -113,8 +113,13 @@ def montar_pdf_etiqueta(
     c.setFont("Helvetica-Bold", fonte_preco)
     c.drawCentredString(largura / 2, altura - 11 * mm * escala_v, preco_formatado)
 
-    # Código de barras (Code128) fino, centralizado na parte inferior da etiqueta
-    barcode = code128.Code128(codigo_barras, barHeight=11 * mm * escala_v, barWidth=0.22 * mm * escala_h)
+    # Código de barras (Code128) fino e compacto — proporção parecida com
+    # etiquetas pequenas de barrinha de chocolate. Atenção: a impressora
+    # Goldensky-80 imprime a 203dpi (~0,125mm por ponto), então módulos abaixo
+    # de ~0,20mm ficam sujeitos a arredondamento de 1-2 pontos na rasterização;
+    # teste a leitura no leitor de código de barras da loja antes de imprimir
+    # um lote grande — se o scanner não ler bem, volte para 0.22mm.
+    barcode = code128.Code128(codigo_barras, barHeight=8 * mm * escala_v, barWidth=0.18 * mm * escala_h)
     barcode_largura = barcode.width
     barcode.drawOn(c, (largura - barcode_largura) / 2, 2 * mm * escala_v)
 
