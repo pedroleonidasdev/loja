@@ -59,6 +59,9 @@ MAX_ETIQUETAS_POR_LOTE = 100
 
 # --- Configuração do cupom não fiscal (recibo de venda) ----------------------
 NOME_LOJA = os.environ.get("GOLDENSKY_NOME_LOJA", "Presente de Deus")
+TELEFONE_LOJA = os.environ.get("GOLDENSKY_TELEFONE_LOJA", "(61) 3264-0078")
+ENDERECO_LOJA = os.environ.get("GOLDENSKY_ENDERECO_LOJA", "CLN 7 Bloco B Lote 1 Loja 4")
+INSTAGRAM_LOJA = os.environ.get("GOLDENSKY_INSTAGRAM_LOJA", "@presentedeusartigoscatolicos")
 LARGURA_CUPOM_COLS = int(os.environ.get("GOLDENSKY_CUPOM_COLUNAS", "48"))  # bobina 80mm, fonte padrão
 CODEPAGE_CUPOM = "cp850"  # tabela de caracteres com acentuação em português
 DRY_RUN_OUTPUT_CUPOM = os.environ.get(
@@ -349,6 +352,10 @@ def montar_stream_cupom(venda: dict) -> bytes:
     linhas = []
 
     linhas.append(NOME_LOJA.upper().center(largura))
+    if ENDERECO_LOJA:
+        linhas.append(ENDERECO_LOJA.center(largura))
+    if TELEFONE_LOJA:
+        linhas.append(f"WhatsApp: {TELEFONE_LOJA}".center(largura))
     linhas.append("Cupom não fiscal".center(largura))
     linhas.append("-" * largura)
 
@@ -415,6 +422,8 @@ def montar_stream_cupom(venda: dict) -> bytes:
 
     linhas.append("")
     linhas.append("Obrigado pela preferência!".center(largura))
+    if INSTAGRAM_LOJA:
+        linhas.append(f"Instagram: {INSTAGRAM_LOJA}".center(largura))
     linhas.append("")
 
     texto = _ESC_INIT + _ESC_TABELA_CP850 + _ESC_ALINHAR_ESQUERDA + "\n".join(linhas) + "\n"
