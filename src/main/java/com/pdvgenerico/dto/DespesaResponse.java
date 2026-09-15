@@ -3,6 +3,7 @@ package com.pdvgenerico.dto;
 import com.pdvgenerico.model.Despesa;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -15,6 +16,7 @@ public record DespesaResponse(
         BigDecimal valor,
         String formaPagamento,
         LocalDateTime dataHora,
+        LocalDate dataVencimento,
         String usuarioNome,
         Long caixaId,
         Integer numeroParcelas,
@@ -31,6 +33,7 @@ public record DespesaResponse(
                 despesa.getValor(),
                 despesa.getFormaPagamento().name(),
                 despesa.getDataHora(),
+                despesa.getDataVencimento(),
                 despesa.getUsuario().getNome(),
                 despesa.getCaixa() != null ? despesa.getCaixa().getId() : null,
                 despesa.getNumeroParcelas(),

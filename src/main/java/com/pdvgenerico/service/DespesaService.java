@@ -67,6 +67,10 @@ public class DespesaService {
                 .valor(request.valor())
                 .formaPagamento(formaPagamento)
                 .dataHora(LocalDateTime.now(ZoneOffset.UTC))
+                // só faz sentido preencher pra DESPESA à vista — pra parcelada, o vencimento
+                // é por parcela (Parcela.dataVencimento); pra sangria/suprimento não existe
+                // "vencimento", então ignoramos o que vier no request.
+                .dataVencimento(!movimentoDeCaixa && parcelas.isEmpty() ? request.dataVencimento() : null)
                 .usuario(usuarioLogado)
                 // só vincula ao caixa quando o dinheiro realmente sai/entra da gaveta —
                 // isso é o que a conferência de caixa em Relatórios usa depois
@@ -108,6 +112,9 @@ public class DespesaService {
         despesa.setDescricao(request.descricao());
         despesa.setValor(request.valor());
         despesa.setFormaPagamento(formaPagamento);
+        // mesma regra do registrar(): só à vista guarda vencimento no próprio
+        // lançamento; parcelada usa o vencimento de cada parcela.
+        despesa.setDataVencimento(!movimentoDeCaixa && parcelas.isEmpty() ? request.dataVencimento() : null);
         // mesmo cuidado do registrar(): Integer.valueOf() nos dois lados evita NPE
         // de unboxing quando request.numeroParcelas() vem null (à vista).
         despesa.setNumeroParcelas(!parcelas.isEmpty() ? Integer.valueOf(parcelas.size()) : request.numeroParcelas());

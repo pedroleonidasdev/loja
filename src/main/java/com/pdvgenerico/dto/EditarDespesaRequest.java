@@ -9,6 +9,7 @@ import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 // Edição de um lançamento já registrado. O tipo (DESPESA/SANGRIA/SUPRIMENTO)
@@ -37,6 +38,9 @@ public record EditarDespesaRequest(
         Integer numeroParcelas,
 
         @Valid
-        List<ParcelaRequest> parcelas
+        List<ParcelaRequest> parcelas,
+
+        // Editável: data em que a despesa vence.
+        LocalDate dataVencimento
 ) {
 }

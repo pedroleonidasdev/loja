@@ -10,6 +10,7 @@ import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 public record DespesaRequest(
@@ -42,6 +43,11 @@ public record DespesaRequest(
 
         // Opcional: detalhamento de cada parcela (data de vencimento + valor).
         @Valid
-        List<ParcelaRequest> parcelas
+        List<ParcelaRequest> parcelas,
+
+        // Opcional: data em que a despesa vence. Só faz sentido pra tipo=DESPESA
+        // à vista (sem `parcelas` detalhado) — cada parcela tem seu próprio
+        // vencimento em ParcelaRequest.dataVencimento.
+        LocalDate dataVencimento
 ) {
 }

@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -58,6 +59,13 @@ public class Despesa {
 
     @Column(nullable = false)
     private LocalDateTime dataHora;
+
+    // data em que a despesa vence/deve ser paga — diferente de dataHora, que é
+    // só o registro de quando o lançamento foi criado no sistema. Opcional:
+    // só faz sentido pra tipo=DESPESA à vista (parcelada já tem vencimento por
+    // parcela em Parcela.dataVencimento); nula pra SANGRIA/SUPRIMENTO.
+    @Column(name = "data_vencimento")
+    private LocalDate dataVencimento;
 
     // preenchido só quando a despesa foi parcelada (ex: cheque em 5x, cartão
     // parcelado). Nulo/1 = à vista, sem parcelamento. Quando `parcelas` abaixo
