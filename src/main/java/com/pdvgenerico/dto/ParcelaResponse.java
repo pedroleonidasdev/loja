@@ -8,9 +8,15 @@ import java.time.LocalDate;
 public record ParcelaResponse(
         Integer numero,
         LocalDate dataVencimento,
-        BigDecimal valor
+        BigDecimal valor,
+        boolean pago
 ) {
     public static ParcelaResponse fromEntity(Parcela parcela) {
-        return new ParcelaResponse(parcela.getNumero(), parcela.getDataVencimento(), parcela.getValor());
+        return new ParcelaResponse(
+                parcela.getNumero(),
+                parcela.getDataVencimento(),
+                parcela.getValor(),
+                Boolean.TRUE.equals(parcela.getPago())
+        );
     }
 }

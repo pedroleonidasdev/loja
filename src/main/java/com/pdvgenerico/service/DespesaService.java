@@ -121,6 +121,43 @@ public class DespesaService {
         return despesaRepository.save(despesa);
     }
 
+    /**
+     * Marca/desmarca como pago um lançamento à vista (sem parcelas detalhadas).
+     * Para lançamentos parcelados, use marcarParcelaPaga por parcela — este
+     * método recusa parcelados de propósito pra não deixar o "pago" geral e o
+     * das parcelas dessincronizarem.
+     */
+    @Transactional
+    public Despesa marcarPago(Long id, boolean pago) {
+        Despesa despesa = despesaRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Despesa não encontrada."));
+
+        if (!despesa.getParcelas().isEmpty()) {
+            throw new BusinessException(
+                    "Esse lançamento é parcelado — marque cada parcela como paga individualmente.");
+        }
+
+        despesa.setPago(pago);
+        return despesaRepository.save(despesa);
+    }
+
+    /**
+     * Marca/desmarca como paga uma parcela específica de um lançamento parcelado.
+     */
+    @Transactional
+    public Despesa marcarParcelaPaga(Long id, Integer numeroParcela, boolean pago) {
+        Despesa despesa = despesaRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Despesa não encontrada."));
+
+        Parcela parcela = despesa.getParcelas().stream()
+                .filter(p -> p.getNumero().equals(numeroParcela))
+                .findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException("Parcela não encontrada."));
+
+        parcela.setPago(pago);
+        return despesaRepository.save(despesa);
+    }
+
     private List<Parcela> construirParcelas(List<ParcelaRequest> parcelasRequest) {
         List<Parcela> parcelas = new ArrayList<>();
         if (parcelasRequest == null) {

@@ -29,4 +29,7 @@ public class Parcela {
 
     @Column(precision = 10, scale = 2)
     private BigDecimal valor;
+
+    @Builder.Default
+    private Boolean pago = false;
 }

@@ -18,7 +18,8 @@ public record DespesaResponse(
         String usuarioNome,
         Long caixaId,
         Integer numeroParcelas,
-        List<ParcelaResponse> parcelas
+        List<ParcelaResponse> parcelas,
+        boolean pago
 ) {
     public static DespesaResponse fromEntity(Despesa despesa) {
         return new DespesaResponse(
@@ -33,7 +34,13 @@ public record DespesaResponse(
                 despesa.getUsuario().getNome(),
                 despesa.getCaixa() != null ? despesa.getCaixa().getId() : null,
                 despesa.getNumeroParcelas(),
-                despesa.getParcelas().stream().map(ParcelaResponse::fromEntity).toList()
+                despesa.getParcelas().stream().map(ParcelaResponse::fromEntity).toList(),
+                // à vista: usa o campo da própria despesa. Parcelada: "paga" só quando
+                // TODAS as parcelas estão pagas (é o que a UI usa pra marcar o lançamento
+                // inteiro como quitado, mesmo controlando cada parcela por baixo).
+                despesa.getParcelas().isEmpty()
+                        ? Boolean.TRUE.equals(despesa.getPago())
+                        : despesa.getParcelas().stream().allMatch(p -> Boolean.TRUE.equals(p.getPago()))
         );
     }
 }

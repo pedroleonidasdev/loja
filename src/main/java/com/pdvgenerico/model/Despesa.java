@@ -85,4 +85,13 @@ public class Despesa {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "caixa_id")
     private Caixa caixa;
+
+    // controle de pagamento pra lançamentos à vista (sem parcelas detalhadas).
+    // Quando a despesa É parcelada (parcelas não vazio), este campo é ignorado —
+    // o pagamento é controlado por parcela, em Parcela.pago.
+    // Sem nullable=false de propósito: coluna nova numa tabela já com dados
+    // (ddl-auto=update), registros antigos ficam com null — tratado como "não
+    // pago" no código (DespesaResponse/DespesaService), nunca como constraint.
+    @Builder.Default
+    private Boolean pago = false;
 }

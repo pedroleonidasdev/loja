@@ -50,6 +50,21 @@ public class DespesaController {
         return ResponseEntity.ok(DespesaResponse.fromEntity(despesaService.editar(id, request)));
     }
 
+    // Marca/desmarca como pago um lançamento à vista (sem parcelas detalhadas).
+    @PatchMapping("/{id}/pago")
+    public ResponseEntity<DespesaResponse> marcarPago(@PathVariable Long id,
+                                                        @RequestParam(defaultValue = "true") boolean pago) {
+        return ResponseEntity.ok(DespesaResponse.fromEntity(despesaService.marcarPago(id, pago)));
+    }
+
+    // Marca/desmarca como paga uma parcela específica de um lançamento parcelado.
+    @PatchMapping("/{id}/parcelas/{numero}/pago")
+    public ResponseEntity<DespesaResponse> marcarParcelaPaga(@PathVariable Long id,
+                                                               @PathVariable Integer numero,
+                                                               @RequestParam(defaultValue = "true") boolean pago) {
+        return ResponseEntity.ok(DespesaResponse.fromEntity(despesaService.marcarParcelaPaga(id, numero, pago)));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> excluir(@PathVariable Long id) {
         despesaService.excluir(id);
