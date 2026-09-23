@@ -1,1 +1,26 @@
-__pycache__/
+# Maven
+target/
+
+# IDE (Eclipse / STS)
+.classpath
+.project
+.settings/
+.factorypath
+
+# IDE (IntelliJ)
+.idea/
+*.iml
+
+# IDE (VS Code)
+.vscode/
+
+# Logs
+*.log
+build_log.txt
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+
+# Variáveis de ambiente locais
+.env
