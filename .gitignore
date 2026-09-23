@@ -24,3 +24,5 @@ Thumbs.db
 
 # Variáveis de ambiente locais
 .env
+
+__pycache__/
