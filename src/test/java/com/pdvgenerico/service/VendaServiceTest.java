@@ -44,6 +44,8 @@ class VendaServiceTest {
     private UsuarioRepository usuarioRepository;
     @Mock
     private PasswordEncoder passwordEncoder;
+    @Mock
+    private NotificacaoService notificacaoService;
 
     @InjectMocks
     private VendaService vendaService;

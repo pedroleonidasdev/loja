@@ -24,6 +24,7 @@ public class CaixaService {
     private static final int OFFSET_BRASILIA_HORAS = 3;
 
     private final CaixaRepository caixaRepository;
+    private final NotificacaoService notificacaoService;
 
     // Usa a lista ordenada por data de abertura em vez de findByAbertoTrue()
     // (Optional): se existir mais de um caixa com aberto=true no banco (dado
@@ -65,7 +66,16 @@ public class CaixaService {
                 .aberto(true)
                 .build();
 
-        return caixaRepository.save(caixa);
+        Caixa caixaSalvo = caixaRepository.save(caixa);
+
+        notificacaoService.notificarAdmins(
+                "Caixa aberto",
+                usuarioLogado.getNome() + " abriu o caixa com R$ " + request.valorInicial(),
+                "/pdv",
+                usuarioLogado.getId()
+        );
+
+        return caixaSalvo;
     }
 
     @Transactional
@@ -78,7 +88,16 @@ public class CaixaService {
         caixa.setDataFechamento(LocalDateTime.now(ZoneOffset.UTC));
         caixa.setAberto(false);
 
-        return caixaRepository.save(caixa);
+        Caixa caixaSalvo = caixaRepository.save(caixa);
+
+        notificacaoService.notificarAdmins(
+                "Caixa fechado",
+                usuarioLogado.getNome() + " fechou o caixa com R$ " + request.valorFinal(),
+                "/relatorios",
+                usuarioLogado.getId()
+        );
+
+        return caixaSalvo;
     }
 
     // Reabertura é restrita a ADMIN (ver @PreAuthorize no controller) e só é

@@ -29,6 +29,7 @@ public class VendaService {
     private final ProdutoRepository produtoRepository;
     private final UsuarioRepository usuarioRepository;
     private final PasswordEncoder passwordEncoder;
+    private final NotificacaoService notificacaoService;
 
     private static final BigDecimal CEM = BigDecimal.valueOf(100);
 
@@ -134,7 +135,16 @@ public class VendaService {
                 : FormaPagamento.MULTIPLO);
         venda.setPagamentos(pagamentos);
 
-        return vendaRepository.save(venda);
+        Venda vendaSalva = vendaRepository.save(venda);
+
+        notificacaoService.notificarAdmins(
+                "Nova venda",
+                usuarioLogado.getNome() + " registrou uma venda de R$ " + totalVenda,
+                "/vendas",
+                usuarioLogado.getId()
+        );
+
+        return vendaSalva;
     }
 
     public List<Venda> listarTodas() {
