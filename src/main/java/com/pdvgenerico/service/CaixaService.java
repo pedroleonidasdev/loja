@@ -133,6 +133,15 @@ public class CaixaService {
         caixa.setUsuarioReabertura(usuarioLogado);
         caixa.setDataReabertura(LocalDateTime.now(ZoneOffset.UTC));
 
-        return caixaRepository.save(caixa);
+        Caixa caixaSalvo = caixaRepository.save(caixa);
+
+        notificacaoService.notificarAdmins(
+                "Caixa reaberto",
+                usuarioLogado.getNome() + " reabriu o caixa #" + caixa.getId(),
+                "/pdv",
+                usuarioLogado.getId()
+        );
+
+        return caixaSalvo;
     }
 }
