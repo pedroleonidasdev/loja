@@ -141,7 +141,7 @@ public class VendaService {
                 "Nova venda",
                 usuarioLogado.getNome() + " registrou uma venda de R$ " + totalVenda,
                 "/vendas",
-                usuarioLogado.getId()
+                null // notifica todo ADMIN, inclusive quem fez a acao
         );
 
         return vendaSalva;

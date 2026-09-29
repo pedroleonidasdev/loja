@@ -72,7 +72,7 @@ public class CaixaService {
                 "Caixa aberto",
                 usuarioLogado.getNome() + " abriu o caixa com R$ " + request.valorInicial(),
                 "/pdv",
-                usuarioLogado.getId()
+                null // notifica todo ADMIN, inclusive quem fez a acao
         );
 
         return caixaSalvo;
@@ -94,7 +94,7 @@ public class CaixaService {
                 "Caixa fechado",
                 usuarioLogado.getNome() + " fechou o caixa com R$ " + request.valorFinal(),
                 "/relatorios",
-                usuarioLogado.getId()
+                null // notifica todo ADMIN, inclusive quem fez a acao
         );
 
         return caixaSalvo;
