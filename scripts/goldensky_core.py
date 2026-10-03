@@ -59,7 +59,7 @@ MAX_ETIQUETAS_POR_LOTE = 100
 
 # --- Configuração do cupom não fiscal (recibo de venda) ----------------------
 NOME_LOJA = os.environ.get("GOLDENSKY_NOME_LOJA", "Presente de Deus")
-TELEFONE_LOJA = os.environ.get("GOLDENSKY_TELEFONE_LOJA", "(61) 3264-0078")
+TELEFONE_LOJA = os.environ.get("GOLDENSKY_TELEFONE_LOJA", "(61) 3264-0087")
 ENDERECO_LOJA = os.environ.get("GOLDENSKY_ENDERECO_LOJA", "CLN 7 Bloco B Lote 1 Loja 4")
 INSTAGRAM_LOJA = os.environ.get("GOLDENSKY_INSTAGRAM_LOJA", "@presentedeusartigoscatolicos")
 LARGURA_CUPOM_COLS = int(os.environ.get("GOLDENSKY_CUPOM_COLUNAS", "48"))  # bobina 80mm, fonte padrão
