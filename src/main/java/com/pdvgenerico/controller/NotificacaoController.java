@@ -34,4 +34,12 @@ public class NotificacaoController {
         notificacaoService.desinscrever(endpoint);
         return ResponseEntity.noContent().build();
     }
+
+    // Teste manual: dispara uma notificação para todos os aparelhos de ADMIN e
+    // devolve o que aconteceu com cada um (enviada, expirada, falhou...).
+    @PostMapping("/teste")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<NotificacaoService.ResultadoEnvio> testar() {
+        return ResponseEntity.ok(notificacaoService.enviarTeste());
+    }
 }
