@@ -53,4 +53,16 @@ public class Caixa {
     private Usuario usuarioReabertura;
 
     private LocalDateTime dataReabertura;
+
+    // Correção do valor de abertura (digitado errado). Mantém o valor que foi
+    // digitado originalmente e registra quem corrigiu e quando, para auditoria.
+    // Nulos enquanto o valor de abertura nunca foi corrigido.
+    @Column(precision = 10, scale = 2)
+    private BigDecimal valorInicialOriginal;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "usuario_edicao_abertura_id")
+    private Usuario usuarioEdicaoAbertura;
+
+    private LocalDateTime dataEdicaoAbertura;
 }

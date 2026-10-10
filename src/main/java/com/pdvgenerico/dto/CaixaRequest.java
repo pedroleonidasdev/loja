@@ -8,6 +8,11 @@ import java.math.BigDecimal;
 public record CaixaRequest(
         @NotNull @PositiveOrZero BigDecimal valorInicial
 ) {
+    public record EdicaoAberturaRequest(
+            @NotNull @PositiveOrZero BigDecimal valorInicial
+    ) {
+    }
+
     public record FechamentoRequest(
             @NotNull @PositiveOrZero BigDecimal valorFinal
     ) {

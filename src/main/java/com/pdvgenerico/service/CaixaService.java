@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -73,6 +74,47 @@ public class CaixaService {
                 usuarioLogado.getNome() + " abriu o caixa com R$ " + request.valorInicial(),
                 "/pdv",
                 null // notifica todo ADMIN, inclusive quem fez a acao
+        );
+
+        return caixaSalvo;
+    }
+
+    /**
+     * Corrige o valor de abertura de um caixa AINDA ABERTO (ex.: digitou 100 em vez
+     * de 10). Guarda o valor original na primeira correção, registra quem corrigiu e
+     * quando, e avisa os administradores com o valor antigo e o novo. Em caixa já
+     * fechado não é permitido — um ADMIN precisa reabri-lo antes (tela Reabrir Caixa).
+     */
+    @Transactional
+    public Caixa editarValorInicial(Long id, CaixaRequest.EdicaoAberturaRequest request, Usuario usuarioLogado) {
+        Caixa caixa = caixaRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Caixa não encontrado."));
+
+        if (!caixa.isAberto()) {
+            throw new BusinessException(
+                    "Só é possível corrigir o valor de abertura de um caixa aberto. Peça a um administrador para reabrir o caixa.");
+        }
+
+        BigDecimal anterior = caixa.getValorInicial();
+        BigDecimal novo = request.valorInicial();
+        if (anterior.compareTo(novo) == 0) {
+            throw new BusinessException("O novo valor é igual ao valor de abertura atual.");
+        }
+
+        if (caixa.getValorInicialOriginal() == null) {
+            caixa.setValorInicialOriginal(anterior);
+        }
+        caixa.setValorInicial(novo);
+        caixa.setUsuarioEdicaoAbertura(usuarioLogado);
+        caixa.setDataEdicaoAbertura(LocalDateTime.now(ZoneOffset.UTC));
+
+        Caixa caixaSalvo = caixaRepository.save(caixa);
+
+        notificacaoService.notificarAdmins(
+                "Abertura de caixa corrigida",
+                usuarioLogado.getNome() + " corrigiu o valor de abertura de R$ " + anterior + " para R$ " + novo,
+                "/relatorios",
+                usuarioLogado.getId()
         );
 
         return caixaSalvo;

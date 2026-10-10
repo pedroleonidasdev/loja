@@ -55,6 +55,17 @@ public class CaixaController {
         return ResponseEntity.ok(CaixaResponse.fromEntity(caixaService.abrir(request, usuarioLogado)));
     }
 
+    // Corrige o valor de abertura de um caixa ainda aberto (digitado errado).
+    // ADMIN ou CAIXA podem corrigir; fica registrado quem corrigiu, o valor original
+    // e os administradores são notificados (ver CaixaService.editarValorInicial).
+    @PatchMapping("/{id}/valor-inicial")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CAIXA')")
+    public ResponseEntity<CaixaResponse> editarValorInicial(@PathVariable Long id,
+                                                             @Valid @RequestBody CaixaRequest.EdicaoAberturaRequest request,
+                                                             @AuthenticationPrincipal Usuario usuarioLogado) {
+        return ResponseEntity.ok(CaixaResponse.fromEntity(caixaService.editarValorInicial(id, request, usuarioLogado)));
+    }
+
     // Fechamento pode ser feito por ADMIN ou CAIXA. O operador de caixa só informa
     // o valor contado fisicamente (dinheiro em caixa) — o sistema não expõe o
     // faturamento do dia pra ele nessa tela; só o ADMIN vê esse comparativo depois,
