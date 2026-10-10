@@ -40,6 +40,13 @@ public class ConsignacaoController {
         return ConsignacaoResponse.fromEntity(consignacaoService.buscarPorId(id));
     }
 
+    // Edição de consignação em aberto (acrescentar/remover produtos, mudar quantidades).
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CAIXA')")
+    public ConsignacaoResponse atualizar(@PathVariable Long id, @Valid @RequestBody ConsignacaoRequest request) {
+        return ConsignacaoResponse.fromEntity(consignacaoService.atualizar(id, request));
+    }
+
     @PostMapping("/{id}/fechar")
     @PreAuthorize("hasAnyRole('ADMIN', 'CAIXA')")
     public ConsignacaoResponse fechar(@PathVariable Long id, @Valid @RequestBody FecharConsignacaoRequest request) {

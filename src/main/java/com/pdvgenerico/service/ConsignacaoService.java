@@ -17,6 +17,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -95,6 +96,71 @@ public class ConsignacaoService {
 
         consignacao.setItens(itens);
         return consignacaoRepository.save(consignacao);
+    }
+
+    /**
+     * Edita uma consignação AINDA ABERTA: dados do cabeçalho e a lista de itens
+     * (acrescentar produtos, mudar quantidades, remover). A lista recebida é a lista
+     * final: o que não vier nela é removido. Itens que já existiam mantêm o preço e a
+     * comissão gravados na criação; só os produtos novos usam o preço de hoje.
+     * Como o estoque só dá baixa no fechamento, nada muda no estoque aqui.
+     */
+    @Transactional
+    public Consignacao atualizar(Long id, ConsignacaoRequest request) {
+        Consignacao consignacao = buscarPorId(id);
+        if (consignacao.getStatus() != StatusConsignacao.ABERTA) {
+            throw new BusinessException("Só é possível editar uma consignação em aberto.");
+        }
+
+        // junta linhas repetidas do mesmo produto, mantendo a ordem em que vieram
+        Map<Long, Integer> quantidadePorProduto = new LinkedHashMap<>();
+        for (ConsignacaoRequest.ItemConsignacaoRequest itemReq : request.itens()) {
+            quantidadePorProduto.merge(itemReq.produtoId(), itemReq.quantidade(), Integer::sum);
+        }
+
+        // 1) remove o que saiu da lista
+        consignacao.getItens().removeIf(i -> !quantidadePorProduto.containsKey(i.getProduto().getId()));
+
+        // 2) atualiza a quantidade dos que ficaram (preço e comissão originais são mantidos)
+        Map<Long, ItemConsignacao> existentes = new HashMap<>();
+        for (ItemConsignacao item : consignacao.getItens()) {
+            existentes.put(item.getProduto().getId(), item);
+        }
+        for (Map.Entry<Long, Integer> e : quantidadePorProduto.entrySet()) {
+            ItemConsignacao existente = existentes.get(e.getKey());
+            if (existente != null) {
+                validarEstoque(existente.getProduto(), e.getValue());
+                existente.setQuantidadeEnviada(e.getValue());
+            }
+        }
+
+        // 3) acrescenta os produtos novos, com o preço e a comissão de hoje
+        for (Map.Entry<Long, Integer> e : quantidadePorProduto.entrySet()) {
+            if (existentes.containsKey(e.getKey())) continue;
+            Produto produto = produtoRepository.findById(e.getKey())
+                    .orElseThrow(() -> new ResourceNotFoundException("Produto não encontrado: id " + e.getKey()));
+            validarEstoque(produto, e.getValue());
+            consignacao.getItens().add(ItemConsignacao.builder()
+                    .consignacao(consignacao)
+                    .produto(produto)
+                    .quantidadeEnviada(e.getValue())
+                    .quantidadeVendida(0)
+                    .precoUnitario(produto.getPrecoVenda())
+                    .percentualComissao(percentualComissaoPara(produto))
+                    .build());
+        }
+
+        consignacao.setConsignatario(request.consignatario().trim());
+        consignacao.setPrazoDevolucao(request.prazoDevolucao());
+        consignacao.setObservacao(request.observacao());
+        return consignacaoRepository.save(consignacao);
+    }
+
+    private void validarEstoque(Produto produto, int quantidade) {
+        if (produto.getQuantidadeEstoque() < quantidade) {
+            throw new BusinessException("Estoque insuficiente para o produto: " + produto.getNome()
+                    + " (disponível: " + produto.getQuantidadeEstoque() + ")");
+        }
     }
 
     /**
