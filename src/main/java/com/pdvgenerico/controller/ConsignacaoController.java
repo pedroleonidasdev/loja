@@ -46,6 +46,12 @@ public class ConsignacaoController {
         return ConsignacaoResponse.fromEntity(consignacaoService.fechar(id, request));
     }
 
+    @DeleteMapping("/{id}/itens/{itemId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CAIXA')")
+    public ConsignacaoResponse removerItem(@PathVariable Long id, @PathVariable Long itemId) {
+        return ConsignacaoResponse.fromEntity(consignacaoService.removerItem(id, itemId));
+    }
+
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> excluir(@PathVariable Long id) {

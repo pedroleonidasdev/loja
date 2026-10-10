@@ -143,6 +143,31 @@ public class ConsignacaoService {
         return consignacaoRepository.save(consignacao);
     }
 
+    /**
+     * Tira um item de uma consignação ABERTA (ex: produto lançado por engano ou
+     * que ficou sem estoque). Como o estoque só dá baixa no fechamento, não há
+     * nada a devolver. A consignação precisa continuar com ao menos um item;
+     * para cancelá-la inteira, use a exclusão.
+     */
+    @Transactional
+    public Consignacao removerItem(Long id, Long itemId) {
+        Consignacao consignacao = buscarPorId(id);
+        if (consignacao.getStatus() == StatusConsignacao.FECHADA) {
+            throw new BusinessException("Não é possível remover item de uma consignação já fechada");
+        }
+        ItemConsignacao item = consignacao.getItens().stream()
+                .filter(i -> i.getId().equals(itemId))
+                .findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Item " + itemId + " não pertence à consignação " + id));
+        if (consignacao.getItens().size() == 1) {
+            throw new BusinessException(
+                    "A consignação precisa ter ao menos um item. Para cancelá-la, exclua a consignação.");
+        }
+        consignacao.getItens().remove(item);
+        return consignacaoRepository.save(consignacao);
+    }
+
     public List<Consignacao> listarTodas() {
         return consignacaoRepository.findAllByOrderByDataHoraDesc();
     }
