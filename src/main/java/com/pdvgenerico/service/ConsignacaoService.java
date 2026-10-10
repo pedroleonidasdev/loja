@@ -25,7 +25,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class ConsignacaoService {
 
-    /** Comissão sobre Livros e Bíblias (conforme o Termo de Responsabilidade). */
+    /** Comissão sobre Livros, Bíblias e Paulinas (conforme o Termo de Responsabilidade). */
     public static final BigDecimal COMISSAO_LIVROS_BIBLIAS = new BigDecimal("15.00");
     /** Comissão sobre os demais artigos religiosos. */
     public static final BigDecimal COMISSAO_DEMAIS_ARTIGOS = new BigDecimal("20.00");
@@ -34,9 +34,9 @@ public class ConsignacaoService {
     private final ProdutoRepository produtoRepository;
 
     /**
-     * Livros e Bíblias pagam 15%; todo o resto, 20%. A decisão é pela categoria:
-     * qualquer categoria cujo nome contenha "livro" ou "bíblia" (sem diferenciar
-     * acento/maiúscula) conta como Livros e Bíblias.
+     * Livros, Bíblias e Paulinas pagam 15%; todo o resto, 20%. A decisão é pela categoria:
+     * qualquer categoria cujo nome contenha "livro", "bíblia" ou "paulinas" (sem diferenciar
+     * acento/maiúscula) paga 15%.
      */
     public static BigDecimal percentualComissaoPara(Produto produto) {
         if (produto.getCategoria() == null || produto.getCategoria().getNome() == null) {
@@ -45,7 +45,7 @@ public class ConsignacaoService {
         String nome = Normalizer.normalize(produto.getCategoria().getNome(), Normalizer.Form.NFD)
                 .replaceAll("\\p{M}", "")
                 .toLowerCase();
-        return (nome.contains("livro") || nome.contains("biblia"))
+        return (nome.contains("livro") || nome.contains("biblia") || nome.contains("paulina"))
                 ? COMISSAO_LIVROS_BIBLIAS
                 : COMISSAO_DEMAIS_ARTIGOS;
     }
