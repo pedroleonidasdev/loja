@@ -119,6 +119,18 @@ public class ProdutoService {
         return semCodigo.size();
     }
 
+    /** Muda a categoria de todos os produtos informados (usado na tela de Estoque). Devolve quantos foram alterados. */
+    @Transactional
+    public int alterarCategoriaEmLote(List<Long> produtoIds, Long categoriaId) {
+        Categoria categoria = resolverCategoria(categoriaId);
+        List<Produto> produtos = produtoRepository.findAllById(produtoIds);
+        for (Produto produto : produtos) {
+            produto.setCategoria(categoria);
+        }
+        produtoRepository.saveAll(produtos);
+        return produtos.size();
+    }
+
     private Categoria resolverCategoria(Long categoriaId) {
         if (categoriaId == null) {
             return null;

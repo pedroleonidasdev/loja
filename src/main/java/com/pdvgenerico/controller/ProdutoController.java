@@ -1,5 +1,6 @@
 package com.pdvgenerico.controller;
 
+import com.pdvgenerico.dto.ProdutoCategoriaLoteRequest;
 import com.pdvgenerico.dto.ProdutoRequest;
 import com.pdvgenerico.model.Produto;
 import com.pdvgenerico.service.ProdutoService;
@@ -60,6 +61,14 @@ public class ProdutoController {
     public ResponseEntity<Map<String, Integer>> gerarCodigosEmLote() {
         int gerados = produtoService.gerarCodigosEmLote();
         return ResponseEntity.ok(Map.of("produtosAtualizados", gerados));
+    }
+
+    // troca a categoria de vários produtos de uma vez (seleção na tela de Estoque)
+    @PostMapping("/categoria-em-lote")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Map<String, Integer>> alterarCategoriaEmLote(@Valid @RequestBody ProdutoCategoriaLoteRequest request) {
+        int alterados = produtoService.alterarCategoriaEmLote(request.produtoIds(), request.categoriaId());
+        return ResponseEntity.ok(Map.of("produtosAtualizados", alterados));
     }
 
     @PutMapping("/{id}")
