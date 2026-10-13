@@ -33,6 +33,38 @@ public class VendaService {
 
     private static final BigDecimal CEM = BigDecimal.valueOf(100);
 
+    // A notificação push tem pouco espaço: mostra os primeiros produtos até
+    // esse limite de caracteres e resume o resto como "e mais N itens".
+    private static final int MAX_CHARS_ITENS_NOTIFICACAO = 110;
+    private static final int MAX_CHARS_NOME_PRODUTO_NOTIFICACAO = 40;
+
+    /** Ex.: "2x Terço, 1x Bíblia e mais 3 itens" — usado no texto da notificação de venda. */
+    private String resumirItens(List<ItemVenda> itens) {
+        StringBuilder resumo = new StringBuilder();
+        int mostrados = 0;
+        for (ItemVenda item : itens) {
+            String nome = item.getProduto().getNome().trim();
+            if (nome.length() > MAX_CHARS_NOME_PRODUTO_NOTIFICACAO) {
+                nome = nome.substring(0, MAX_CHARS_NOME_PRODUTO_NOTIFICACAO - 1).trim() + "…";
+            }
+            String trecho = item.getQuantidade() + "x " + nome;
+            // o primeiro produto sempre aparece; os demais só se couberem
+            if (mostrados > 0 && resumo.length() + 2 + trecho.length() > MAX_CHARS_ITENS_NOTIFICACAO) {
+                break;
+            }
+            if (mostrados > 0) {
+                resumo.append(", ");
+            }
+            resumo.append(trecho);
+            mostrados++;
+        }
+        int restantes = itens.size() - mostrados;
+        if (restantes > 0) {
+            resumo.append(" e mais ").append(restantes).append(restantes == 1 ? " item" : " itens");
+        }
+        return resumo.toString();
+    }
+
     @Transactional
     public Venda registrarVenda(VendaRequest request, Usuario usuarioLogado) {
         List<ItemVenda> itens = new ArrayList<>();
@@ -139,7 +171,7 @@ public class VendaService {
 
         notificacaoService.notificarAdmins(
                 "Nova venda",
-                usuarioLogado.getNome() + " registrou uma venda de R$ " + totalVenda,
+                usuarioLogado.getNome() + " vendeu " + resumirItens(itens) + " (R$ " + totalVenda + ")",
                 "/vendas",
                 null // notifica todo ADMIN, inclusive quem fez a acao
         );

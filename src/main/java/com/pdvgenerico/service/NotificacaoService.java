@@ -216,6 +216,9 @@ public class NotificacaoService {
     }
 
     private String escapar(String texto) {
-        return texto == null ? "" : texto.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", " ");
+        return texto == null ? "" : texto
+                .replaceAll("\\p{Cntrl}", " ") // quebra de linha, tab etc. quebrariam o JSON
+                .replace("\\", "\\\\")
+                .replace("\"", "\\\"");
     }
 }
