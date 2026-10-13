@@ -45,4 +45,9 @@ public class PushSubscription {
 
     @Column(nullable = false)
     private LocalDateTime criadoEm;
+
+    // Descrição do aparelho enviada pelo frontend (ex.: "iPhone (Safari)"); pode ser nula
+    // em inscrições antigas — é preenchida sozinha na próxima vez que o app abrir.
+    @Column(length = 120)
+    private String dispositivo;
 }

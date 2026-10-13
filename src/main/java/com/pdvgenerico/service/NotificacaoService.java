@@ -71,6 +71,7 @@ public class NotificacaoService {
 
     @Transactional
     public void inscrever(PushSubscriptionRequest request, Usuario usuarioLogado) {
+        String dispositivo = limparDispositivo(request.dispositivo());
         pushSubscriptionRepository.findByEndpoint(request.endpoint()).ifPresentOrElse(
                 existente -> {
                     // mesmo endpoint podendo re-inscrever (ex: trocou de usuário no mesmo
@@ -78,6 +79,11 @@ public class NotificacaoService {
                     existente.setUsuario(usuarioLogado);
                     existente.setP256dh(request.keys().p256dh());
                     existente.setAuth(request.keys().auth());
+                    // inscrição criada pelo service worker (renovação em segundo plano) não traz o
+                    // aparelho — nesse caso mantém o que já estava gravado
+                    if (dispositivo != null) {
+                        existente.setDispositivo(dispositivo);
+                    }
                     pushSubscriptionRepository.save(existente);
                 },
                 () -> pushSubscriptionRepository.save(PushSubscription.builder()
@@ -85,6 +91,7 @@ public class NotificacaoService {
                         .endpoint(request.endpoint())
                         .p256dh(request.keys().p256dh())
                         .auth(request.keys().auth())
+                        .dispositivo(dispositivo)
                         .criadoEm(LocalDateTime.now())
                         .build())
         );
@@ -151,15 +158,15 @@ public class NotificacaoService {
         int falhas = 0;
 
         for (PushSubscription inscricao : destinatarios) {
-            String quem = inscricao.getUsuario().getLogin() + " (" + hostDe(inscricao.getEndpoint()) + ")";
+            String quem = descreverDestino(inscricao);
             int status = enviar(inscricao, payload);
 
             if (status >= 200 && status < 300) {
                 enviadas++;
-                detalhes.add(quem + ": enviada (HTTP " + status + ")");
+                detalhes.add(quem + ": enviada");
             } else if (status == 404 || status == 410) {
                 removidas++;
-                detalhes.add(quem + ": inscrição expirada, removida (HTTP " + status + ")");
+                detalhes.add(quem + ": inscrição expirada e removida (ative as notificações de novo nesse aparelho)");
                 log.warn("Push '{}': inscrição de {} expirou (HTTP {}) e foi removida.", titulo, quem, status);
             } else {
                 falhas++;
@@ -197,6 +204,31 @@ public class NotificacaoService {
             log.warn("Falha ao enviar notificação push (endpoint {}): {}", inscricao.getEndpoint(), e.getMessage());
             return -1;
         }
+    }
+
+    /** Ex.: "emerson — Celular Android (Chrome)" — quem recebe e em qual aparelho. */
+    private String descreverDestino(PushSubscription inscricao) {
+        String aparelho = inscricao.getDispositivo() != null && !inscricao.getDispositivo().isBlank()
+                ? inscricao.getDispositivo()
+                : palpiteDoAparelho(inscricao.getEndpoint());
+        return inscricao.getUsuario().getLogin() + " — " + aparelho;
+    }
+
+    // Inscrições antigas ainda não têm o aparelho gravado: pelo menos o serviço de push
+    // que as atende já diz se é Apple, Android/Chrome ou Firefox.
+    private String palpiteDoAparelho(String endpoint) {
+        String host = hostDe(endpoint);
+        if (host.contains("apple")) return "aparelho Apple (iPhone, iPad ou Mac)";
+        if (host.contains("googleapis")) return "aparelho Android ou Chrome";
+        if (host.contains("mozilla")) return "aparelho com Firefox";
+        return "aparelho (" + host + ")";
+    }
+
+    private String limparDispositivo(String dispositivo) {
+        if (dispositivo == null) return null;
+        String limpo = dispositivo.replaceAll("\\p{Cntrl}", " ").trim();
+        if (limpo.isEmpty()) return null;
+        return limpo.length() > 120 ? limpo.substring(0, 120) : limpo;
     }
 
     private String hostDe(String endpoint) {
