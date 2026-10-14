@@ -1,5 +1,6 @@
 package com.pdvgenerico.repository;
 
+import com.pdvgenerico.model.Perfil;
 import com.pdvgenerico.model.Usuario;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -11,6 +12,8 @@ import java.util.Optional;
 
 public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
     Optional<Usuario> findByLogin(String login);
+
+    long countByPerfil(Perfil perfil);
 
     @Modifying
     @Query("update Usuario u set u.sessaoVersao = u.sessaoVersao + 1, u.ultimoAcesso = null where u.id = :id")

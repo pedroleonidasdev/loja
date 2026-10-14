@@ -49,8 +49,8 @@ public class UsuarioController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> excluir(@PathVariable Long id) {
-        usuarioService.excluir(id);
+    public ResponseEntity<Void> excluir(@PathVariable Long id, Authentication authentication) {
+        usuarioService.excluir(id, authentication.getName());
         return ResponseEntity.noContent().build();
     }
 }
