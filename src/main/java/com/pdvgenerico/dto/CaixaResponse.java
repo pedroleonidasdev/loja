@@ -4,6 +4,7 @@ import com.pdvgenerico.model.Caixa;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 public record CaixaResponse(
         Long id,
@@ -19,8 +20,12 @@ public record CaixaResponse(
         LocalDateTime dataReabertura,
         BigDecimal valorInicialOriginal,
         String usuarioEdicaoAberturaNome,
-        LocalDateTime dataEdicaoAbertura
+        LocalDateTime dataEdicaoAbertura,
+        List<OperadorOnline> operadoresOnline
 ) {
+    /** Quem está online agora (usado na sidebar para mostrar quem está operando o caixa). */
+    public record OperadorOnline(String nome, String login) {}
+
     public static CaixaResponse fromEntity(Caixa caixa) {
         return new CaixaResponse(
                 caixa.getId(),
@@ -36,7 +41,14 @@ public record CaixaResponse(
                 caixa.getDataReabertura(),
                 caixa.getValorInicialOriginal(),
                 caixa.getUsuarioEdicaoAbertura() != null ? caixa.getUsuarioEdicaoAbertura().getNome() : null,
-                caixa.getDataEdicaoAbertura()
+                caixa.getDataEdicaoAbertura(),
+                List.of()
         );
+    }
+
+    public CaixaResponse comOperadoresOnline(List<OperadorOnline> operadores) {
+        return new CaixaResponse(id, usuarioAberturaNome, usuarioAberturaLogin, valorInicial, dataAbertura,
+                usuarioFechamentoNome, valorFinal, dataFechamento, aberto, usuarioReaberturaNome, dataReabertura,
+                valorInicialOriginal, usuarioEdicaoAberturaNome, dataEdicaoAbertura, operadores);
     }
 }

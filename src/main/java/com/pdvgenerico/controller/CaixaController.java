@@ -5,6 +5,7 @@ import com.pdvgenerico.dto.CaixaResponse;
 import com.pdvgenerico.model.Caixa;
 import com.pdvgenerico.model.Usuario;
 import com.pdvgenerico.service.CaixaService;
+import com.pdvgenerico.service.PresencaService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -22,13 +23,22 @@ import java.util.List;
 public class CaixaController {
 
     private final CaixaService caixaService;
+    private final PresencaService presencaService;
 
     @GetMapping("/atual")
     @PreAuthorize("hasAnyRole('ADMIN', 'CAIXA')")
     public ResponseEntity<CaixaResponse> caixaAtual() {
         return caixaService.buscarCaixaAberto()
-                .map(caixa -> ResponseEntity.ok(CaixaResponse.fromEntity(caixa)))
+                .map(caixa -> ResponseEntity.ok(CaixaResponse.fromEntity(caixa).comOperadoresOnline(operadoresOnline())))
                 .orElseGet(() -> ResponseEntity.noContent().build());
+    }
+
+    // quem está online agora; o usuário técnico "admin" não conta como operador
+    private List<CaixaResponse.OperadorOnline> operadoresOnline() {
+        return presencaService.listarOnline().stream()
+                .filter(u -> !"admin".equalsIgnoreCase(u.getLogin()))
+                .map(u -> new CaixaResponse.OperadorOnline(u.getNome(), u.getLogin()))
+                .toList();
     }
 
     // usado pela tela de Reabrir Caixa — lista os fechados hoje/ontem, dentro da

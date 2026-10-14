@@ -1,5 +1,6 @@
 package com.pdvgenerico.service;
 
+import com.pdvgenerico.model.Usuario;
 import com.pdvgenerico.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -7,6 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -36,6 +38,13 @@ public class PresencaService {
         }
         ultimaGravacaoMs.put(usuarioId, agora);
         usuarioRepository.atualizarUltimoAcesso(usuarioId, LocalDateTime.now());
+    }
+
+    /** Usuários ativos com atividade dentro da janela online (mesmo critério da tela de Usuários). */
+    @Transactional(readOnly = true)
+    public List<Usuario> listarOnline() {
+        return usuarioRepository.findByAtivoTrueAndUltimoAcessoAfterOrderByNomeAsc(
+                LocalDateTime.now().minus(JANELA_ONLINE));
     }
 
     /** Chamado no logout: marca o usuário como offline imediatamente. */
