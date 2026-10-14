@@ -6,16 +6,21 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
     Optional<Usuario> findByLogin(String login);
 
     @Modifying
-    @Query("update Usuario u set u.sessaoVersao = u.sessaoVersao + 1 where u.id = :id")
+    @Query("update Usuario u set u.sessaoVersao = u.sessaoVersao + 1, u.ultimoAcesso = null where u.id = :id")
     int incrementarSessaoVersao(@Param("id") Long id);
 
     @Modifying
-    @Query("update Usuario u set u.sessaoVersao = u.sessaoVersao + 1")
+    @Query("update Usuario u set u.sessaoVersao = u.sessaoVersao + 1, u.ultimoAcesso = null")
     int incrementarSessaoVersaoDeTodos();
+
+    @Modifying
+    @Query("update Usuario u set u.ultimoAcesso = :quando where u.id = :id")
+    int atualizarUltimoAcesso(@Param("id") Long id, @Param("quando") LocalDateTime quando);
 }

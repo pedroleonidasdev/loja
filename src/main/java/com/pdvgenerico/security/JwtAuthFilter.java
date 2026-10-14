@@ -1,5 +1,7 @@
 package com.pdvgenerico.security;
 
+import com.pdvgenerico.model.Usuario;
+import com.pdvgenerico.service.PresencaService;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -23,6 +25,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
     private final CustomUserDetailsService userDetailsService;
+    private final PresencaService presencaService;
 
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request,
@@ -49,6 +52,9 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                             userDetails, null, userDetails.getAuthorities());
                     authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authToken);
+                    if (userDetails instanceof Usuario usuario) {
+                        presencaService.registrarAcesso(usuario.getId());
+                    }
                 }
             }
         } catch (JwtException | IllegalArgumentException | UsernameNotFoundException e) {

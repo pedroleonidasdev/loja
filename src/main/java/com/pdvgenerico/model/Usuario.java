@@ -9,6 +9,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 
@@ -47,6 +48,11 @@ public class Usuario implements UserDetails {
     @Column(name = "sessao_versao", nullable = false, columnDefinition = "int not null default 0")
     @Builder.Default
     private int sessaoVersao = 0;
+
+    // Última vez que o usuário fez uma requisição autenticada (inclusive o
+    // "ping" periódico do frontend). Define se ele aparece como online.
+    @Column(name = "ultimo_acesso")
+    private LocalDateTime ultimoAcesso;
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
