@@ -41,6 +41,13 @@ public class Usuario implements UserDetails {
     @Builder.Default
     private boolean ativo = true;
 
+    // Incrementada para encerrar todas as sessões (tokens JWT) já emitidas
+    // para este usuário: o token carrega a versão com que foi gerado e só vale
+    // enquanto ela for igual à atual.
+    @Column(name = "sessao_versao", nullable = false, columnDefinition = "int not null default 0")
+    @Builder.Default
+    private int sessaoVersao = 0;
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return List.of(new SimpleGrantedAuthority("ROLE_" + perfil.name()));

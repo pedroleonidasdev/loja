@@ -3,6 +3,7 @@ package com.pdvgenerico.security;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import com.pdvgenerico.model.Usuario;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,6 +26,8 @@ public class JwtUtil {
     // definida e avisar bem alto, já que esse valor está público no código-fonte.
     private static final String SEGREDO_PADRAO_INSEGURO =
             "troque-esta-chave-secreta-em-producao-para-algo-bem-mais-longo-e-aleatorio-1234567890";
+
+    private static final String CLAIM_SESSAO_VERSAO = "sv";
 
     @Value("${app.jwt.secret}")
     private String secret;
@@ -61,9 +64,12 @@ public class JwtUtil {
                 .reduce((a, b) -> a + "," + b)
                 .orElse("");
 
+        int sessaoVersao = userDetails instanceof Usuario usuario ? usuario.getSessaoVersao() : 0;
+
         return Jwts.builder()
                 .subject(userDetails.getUsername())
                 .claim("roles", roles)
+                .claim(CLAIM_SESSAO_VERSAO, sessaoVersao)
                 .issuedAt(now)
                 .expiration(expiry)
                 .signWith(getSigningKey())
@@ -93,7 +99,18 @@ public class JwtUtil {
 
     public boolean isTokenValid(String token, UserDetails userDetails) {
         final String username = extractUsername(token);
-        return username.equals(userDetails.getUsername()) && !isTokenExpired(token);
+        return username.equals(userDetails.getUsername())
+                && !isTokenExpired(token)
+                && sessaoAindaVale(token, userDetails);
+    }
+
+    // tokens antigos (sem o claim) contam como versão 0
+    private boolean sessaoAindaVale(String token, UserDetails userDetails) {
+        if (!(userDetails instanceof Usuario usuario)) {
+            return true;
+        }
+        Integer versaoDoToken = extractClaim(token, claims -> claims.get(CLAIM_SESSAO_VERSAO, Integer.class));
+        return (versaoDoToken == null ? 0 : versaoDoToken) == usuario.getSessaoVersao();
     }
 
     private boolean isTokenExpired(String token) {

@@ -1,5 +1,6 @@
 package com.pdvgenerico.controller;
 
+import com.pdvgenerico.dto.EncerrarSessoesResponse;
 import com.pdvgenerico.dto.UsuarioRequest;
 import com.pdvgenerico.dto.UsuarioResponse;
 import com.pdvgenerico.service.UsuarioService;
@@ -7,6 +8,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -34,6 +36,16 @@ public class UsuarioController {
     @PutMapping("/{id}")
     public UsuarioResponse atualizar(@PathVariable Long id, @Valid @RequestBody UsuarioRequest request) {
         return UsuarioResponse.fromEntity(usuarioService.atualizar(id, request));
+    }
+
+    @PostMapping("/{id}/encerrar-sessoes")
+    public EncerrarSessoesResponse encerrarSessoes(@PathVariable Long id, Authentication authentication) {
+        return new EncerrarSessoesResponse(usuarioService.encerrarSessoes(id, authentication.getName()));
+    }
+
+    @PostMapping("/encerrar-sessoes")
+    public EncerrarSessoesResponse encerrarTodasSessoes(Authentication authentication) {
+        return new EncerrarSessoesResponse(usuarioService.encerrarTodasSessoes(authentication.getName()));
     }
 
     @DeleteMapping("/{id}")

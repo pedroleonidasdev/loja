@@ -45,6 +45,26 @@ class JwtUtilTest {
     }
 
     @Test
+    void tokenDeSessaoEncerradaNaoDeveSerValido() {
+        Usuario usuario = usuario("admin");
+        String token = jwtUtil.generateToken(usuario);
+
+        usuario.setSessaoVersao(usuario.getSessaoVersao() + 1); // sessões encerradas
+
+        assertThat(jwtUtil.isTokenValid(token, usuario)).isFalse();
+    }
+
+    @Test
+    void tokenGeradoDepoisDoEncerramentoDeveSerValido() {
+        Usuario usuario = usuario("admin");
+        usuario.setSessaoVersao(3);
+
+        String token = jwtUtil.generateToken(usuario);
+
+        assertThat(jwtUtil.isTokenValid(token, usuario)).isTrue();
+    }
+
+    @Test
     void tokenJaExpiradoNaoDeveSerValido() {
         ReflectionTestUtils.setField(jwtUtil, "expirationMs", -1_000L); // expira no passado
         Usuario usuario = usuario("admin");
