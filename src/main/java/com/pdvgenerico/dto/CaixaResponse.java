@@ -8,6 +8,7 @@ import java.time.LocalDateTime;
 public record CaixaResponse(
         Long id,
         String usuarioAberturaNome,
+        String usuarioAberturaLogin,
         BigDecimal valorInicial,
         LocalDateTime dataAbertura,
         String usuarioFechamentoNome,
@@ -24,6 +25,7 @@ public record CaixaResponse(
         return new CaixaResponse(
                 caixa.getId(),
                 caixa.getUsuarioAbertura() != null ? caixa.getUsuarioAbertura().getNome() : null,
+                caixa.getUsuarioAbertura() != null ? caixa.getUsuarioAbertura().getLogin() : null,
                 caixa.getValorInicial(),
                 caixa.getDataAbertura(),
                 caixa.getUsuarioFechamento() != null ? caixa.getUsuarioFechamento().getNome() : null,
