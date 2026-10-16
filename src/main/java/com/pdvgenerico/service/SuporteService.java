@@ -33,6 +33,7 @@ public class SuporteService {
 
     public static final String TIPO_CHAMADA = "CHAMADA";
     public static final String TIPO_FIGURINHA = "FIGURINHA";
+    public static final String TIPO_AUDIO = "AUDIO";
     private static final int MAX_FIGURINHA = 80;
 
     private static final Duration RETENCAO = Duration.ofDays(30);
@@ -113,6 +114,22 @@ public class SuporteService {
             repository.deleteByCriadaEmBefore(Instant.now().minus(RETENCAO));
         }
         return salva;
+    }
+
+    /**
+     * Cria a mensagem de voz (o texto guarda só a duração em segundos). Os bytes do
+     * áudio são salvos à parte por {@link AudioSuporteService}.
+     */
+    @Transactional
+    public MensagemSuporte registrarAudio(Usuario eu, Long outroId, int duracaoSegundos) {
+        validarContato(eu, outroId);
+        return repository.save(MensagemSuporte.builder()
+                .remetenteId(eu.getId())
+                .destinatarioId(outroId)
+                .texto(String.valueOf(duracaoSegundos))
+                .tipo(TIPO_AUDIO)
+                .criadaEm(Instant.now())
+                .build());
     }
 
     /** Marca como lidas as mensagens que o outro enviou para mim. */
