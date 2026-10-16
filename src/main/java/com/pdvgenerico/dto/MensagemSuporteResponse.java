@@ -10,10 +10,11 @@ public record MensagemSuporteResponse(
         Long destinatarioId,
         String texto,
         Instant criadaEm,
-        boolean lida
+        boolean lida,
+        String tipo
 ) {
     public static MensagemSuporteResponse fromEntity(MensagemSuporte m) {
         return new MensagemSuporteResponse(
-                m.getId(), m.getRemetenteId(), m.getDestinatarioId(), m.getTexto(), m.getCriadaEm(), m.isLida());
+                m.getId(), m.getRemetenteId(), m.getDestinatarioId(), m.getTexto(), m.getCriadaEm(), m.isLida(), m.getTipo());
     }
 }

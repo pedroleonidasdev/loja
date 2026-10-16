@@ -47,4 +47,11 @@ public class SuporteController {
     public void marcarComoLidas(@AuthenticationPrincipal Usuario eu, @PathVariable Long outroId) {
         suporteService.marcarComoLidas(eu, outroId);
     }
+
+    /** Apaga a conversa só para quem pediu; a outra pessoa continua vendo o histórico dela. */
+    @DeleteMapping("/conversas/{outroId}/mensagens")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void apagarConversa(@AuthenticationPrincipal Usuario eu, @PathVariable Long outroId) {
+        suporteService.apagarConversa(eu, outroId);
+    }
 }

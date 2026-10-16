@@ -86,6 +86,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/relatorios/**").hasRole("ADMIN")
                         .requestMatchers("/api/usuarios/**").hasRole("ADMIN")
                         .requestMatchers("/api/suporte/**").hasAnyRole("ADMIN", "CAIXA")
+                        .requestMatchers("/api/chamadas/**").hasAnyRole("ADMIN", "CAIXA")
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))

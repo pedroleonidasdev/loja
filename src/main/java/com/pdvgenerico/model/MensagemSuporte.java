@@ -39,4 +39,20 @@ public class MensagemSuporte {
     @Column(nullable = false)
     @Builder.Default
     private boolean lida = false;
+
+    /**
+     * Tipo da mensagem. Nulo = mensagem de texto comum; "CHAMADA" = registro
+     * automático de uma chamada de áudio/vídeo (feita, perdida, recusada...).
+     */
+    @Column(length = 20)
+    private String tipo;
+
+    /** "Apagar conversa" é por usuário: cada lado esconde só o que é seu. */
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    @Builder.Default
+    private boolean apagadaRemetente = false;
+
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    @Builder.Default
+    private boolean apagadaDestinatario = false;
 }

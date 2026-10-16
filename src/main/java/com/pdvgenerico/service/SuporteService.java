@@ -31,6 +31,8 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class SuporteService {
 
+    public static final String TIPO_CHAMADA = "CHAMADA";
+
     private static final Duration RETENCAO = Duration.ofDays(30);
     private static final int HISTORICO_INICIAL = 50;
     private static final int MAX_POR_BUSCA = 200;
@@ -100,6 +102,41 @@ public class SuporteService {
     public void marcarComoLidas(Usuario eu, Long outroId) {
         validarContato(eu, outroId);
         repository.marcarComoLidas(eu.getId(), outroId);
+    }
+
+    /**
+     * "Apagar conversa": some da tela de quem apagou, mas continua visível para a
+     * outra pessoa. Quando os dois apagam, as mensagens são excluídas do banco.
+     * Não exige que o outro usuário esteja ativo — dá para limpar o histórico
+     * de alguém que foi desativado.
+     */
+    @Transactional
+    public void apagarConversa(Usuario eu, Long outroId) {
+        if (outroId == null || outroId.equals(eu.getId())) {
+            throw new BusinessException("Escolha outra pessoa");
+        }
+        if (!usuarioRepository.existsById(outroId)) {
+            throw new ResourceNotFoundException("Usuário não encontrado: id " + outroId);
+        }
+        repository.apagarEnviadasPor(eu.getId(), outroId);
+        repository.apagarRecebidasPor(eu.getId(), outroId);
+        repository.excluirApagadasPelosDois(eu.getId(), outroId);
+    }
+
+    /**
+     * Registra no histórico da conversa o resultado de uma chamada (ex.: "Chamada de
+     * áudio · 02:13" ou "Chamada de vídeo perdida"). Perdidas contam como não lidas.
+     */
+    @Transactional
+    public void registrarChamada(Long remetenteId, Long destinatarioId, String texto, boolean naoLida) {
+        repository.save(MensagemSuporte.builder()
+                .remetenteId(remetenteId)
+                .destinatarioId(destinatarioId)
+                .texto(texto)
+                .tipo(TIPO_CHAMADA)
+                .criadaEm(Instant.now())
+                .lida(!naoLida)
+                .build());
     }
 
     private void validarContato(Usuario eu, Long outroId) {
