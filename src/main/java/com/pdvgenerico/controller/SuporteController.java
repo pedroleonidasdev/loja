@@ -39,7 +39,7 @@ public class SuporteController {
     public MensagemSuporteResponse enviar(@AuthenticationPrincipal Usuario eu,
                                           @PathVariable Long outroId,
                                           @Valid @RequestBody MensagemSuporteRequest request) {
-        return MensagemSuporteResponse.fromEntity(suporteService.enviar(eu, outroId, request.texto()));
+        return MensagemSuporteResponse.fromEntity(suporteService.enviar(eu, outroId, request.texto(), request.tipo()));
     }
 
     @PostMapping("/conversas/{outroId}/lidas")

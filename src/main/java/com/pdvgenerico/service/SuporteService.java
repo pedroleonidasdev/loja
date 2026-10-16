@@ -32,6 +32,8 @@ import java.util.Map;
 public class SuporteService {
 
     public static final String TIPO_CHAMADA = "CHAMADA";
+    public static final String TIPO_FIGURINHA = "FIGURINHA";
+    private static final int MAX_FIGURINHA = 80;
 
     private static final Duration RETENCAO = Duration.ofDays(30);
     private static final int HISTORICO_INICIAL = 50;
@@ -77,16 +79,32 @@ public class SuporteService {
 
     @Transactional
     public MensagemSuporte enviar(Usuario eu, Long outroId, String textoOriginal) {
+        return enviar(eu, outroId, textoOriginal, null);
+    }
+
+    /** {@code tipo}: nulo para texto comum ou "FIGURINHA". "CHAMADA" é só do sistema e não é aceito aqui. */
+    @Transactional
+    public MensagemSuporte enviar(Usuario eu, Long outroId, String textoOriginal, String tipoOriginal) {
         validarContato(eu, outroId);
         String texto = textoOriginal == null ? "" : textoOriginal.trim();
         if (texto.isEmpty()) {
             throw new BusinessException("A mensagem não pode estar vazia");
+        }
+        String tipo = tipoOriginal == null || tipoOriginal.isBlank() ? null : tipoOriginal.trim().toUpperCase();
+        if (tipo != null) {
+            if (!tipo.equals(TIPO_FIGURINHA)) {
+                throw new BusinessException("Tipo de mensagem inválido");
+            }
+            if (texto.length() > MAX_FIGURINHA) {
+                throw new BusinessException("Figurinha inválida");
+            }
         }
 
         MensagemSuporte salva = repository.save(MensagemSuporte.builder()
                 .remetenteId(eu.getId())
                 .destinatarioId(outroId)
                 .texto(texto)
+                .tipo(tipo)
                 .criadaEm(Instant.now())
                 .build());
 

@@ -3,7 +3,12 @@ package com.pdvgenerico.dto;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
+/**
+ * @param tipo opcional: nulo = mensagem de texto; "FIGURINHA" = figurinha (o texto
+ *             é o conteúdo dela). Qualquer outro valor é recusado pelo serviço.
+ */
 public record MensagemSuporteRequest(
-        @NotBlank @Size(max = 1000) String texto
+        @NotBlank @Size(max = 1000) String texto,
+        @Size(max = 20) String tipo
 ) {
 }
