@@ -129,7 +129,11 @@ public class ConsignacaoService {
         for (Map.Entry<Long, Integer> e : quantidadePorProduto.entrySet()) {
             ItemConsignacao existente = existentes.get(e.getKey());
             if (existente != null) {
-                validarEstoque(existente.getProduto(), e.getValue());
+                // só cobra estoque de quem AUMENTOU: item que ficou igual ou diminuiu não pode
+                // travar o salvamento porque o estoque de hoje é menor que a quantidade já enviada
+                if (e.getValue() > existente.getQuantidadeEnviada()) {
+                    validarEstoque(existente.getProduto(), e.getValue());
+                }
                 existente.setQuantidadeEnviada(e.getValue());
             }
         }
