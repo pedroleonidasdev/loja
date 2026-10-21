@@ -22,6 +22,8 @@ public record ConsignacaoResponse(
         BigDecimal totalVendido,
         BigDecimal totalComissao,
         BigDecimal totalLiquidoLoja,
+        /** Valor do recibo: o editado no fechamento, ou o líquido da loja (vendido − comissão) se não houve edição. */
+        BigDecimal valorRecibo,
         List<ItemResponse> itens
 ) {
     public record ItemResponse(
@@ -80,6 +82,7 @@ public record ConsignacaoResponse(
                 totalVendido,
                 totalComissao,
                 totalVendido.subtract(totalComissao),
+                c.getValorRecibo() != null ? c.getValorRecibo() : totalVendido.subtract(totalComissao),
                 itens
         );
     }

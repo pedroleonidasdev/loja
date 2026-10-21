@@ -231,6 +231,7 @@ public class ConsignacaoService {
             produtoRepository.save(produto);
         }
 
+        consignacao.setValorRecibo(request.valorRecibo());
         consignacao.setStatus(StatusConsignacao.FECHADA);
         consignacao.setDataFechamento(LocalDateTime.now(ZoneOffset.UTC));
         return consignacaoRepository.save(consignacao);
@@ -288,6 +289,10 @@ public class ConsignacaoService {
                 produto.setQuantidadeEstoque(produto.getQuantidadeEstoque() - diferenca);
                 produtoRepository.save(produto);
             }
+        }
+        // só troca o valor do recibo se a tela mandou um novo; senão mantém o já registrado
+        if (request.valorRecibo() != null) {
+            consignacao.setValorRecibo(request.valorRecibo());
         }
         return consignacaoRepository.save(consignacao);
     }

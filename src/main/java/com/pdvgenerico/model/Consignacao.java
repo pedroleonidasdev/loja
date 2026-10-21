@@ -61,6 +61,13 @@ public class Consignacao {
     @Column
     private LocalDateTime dataFechamento;
 
+    /**
+     * Valor do recibo (o que a loja recebe do consignatário) informado/editado no fechamento. É o valor
+     * que entra no Faturamento. Nulo = usa o cálculo automático (vendido − comissão).
+     */
+    @Column(precision = 12, scale = 2)
+    private java.math.BigDecimal valorRecibo;
+
     @OneToMany(mappedBy = "consignacao", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<ItemConsignacao> itens = new ArrayList<>();
