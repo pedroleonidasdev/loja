@@ -170,13 +170,42 @@ public class VendaService {
         Venda vendaSalva = vendaRepository.save(venda);
 
         notificacaoService.notificarAdmins(
-                "Nova venda",
-                usuarioLogado.getNome() + " vendeu " + resumirItens(itens) + " (R$ " + totalVenda + ")",
+                "💰 Nova venda · " + formatarReais(totalVenda),
+                "👤 " + usuarioLogado.getNome() + " · " + descreverPagamentos(pagamentos) + "\n🛍️ " + resumirItens(itens),
                 "/vendas",
                 null // notifica todo ADMIN, inclusive quem fez a acao
         );
 
         return vendaSalva;
+    }
+
+    /** 45.5 -> "R$ 45,50" (formato brasileiro, sem depender do idioma do servidor). */
+    private static String formatarReais(BigDecimal valor) {
+        String[] partes = valor.setScale(2, RoundingMode.HALF_UP).toPlainString().split("\\.");
+        String inteiro = partes[0].replaceAll("\\B(?=(\\d{3})+(?!\\d))", ".");
+        return "R$ " + inteiro + "," + partes[1];
+    }
+
+    private static String nomeForma(FormaPagamento forma) {
+        return switch (forma) {
+            case PIX -> "PIX";
+            case DINHEIRO -> "Dinheiro";
+            case CARTAO_CREDITO -> "Cartão de crédito";
+            case CARTAO_DEBITO -> "Cartão de débito";
+            case CHEQUE -> "Cheque";
+            case BOLETO -> "Boleto";
+            case MULTIPLO -> "Várias formas";
+        };
+    }
+
+    /** "PIX" ou, com pagamento dividido, "PIX R$ 20,00 + Dinheiro R$ 25,50". */
+    private static String descreverPagamentos(List<PagamentoVenda> pagamentos) {
+        if (pagamentos.size() == 1) {
+            return nomeForma(pagamentos.get(0).getFormaPagamento());
+        }
+        return pagamentos.stream()
+                .map(p -> nomeForma(p.getFormaPagamento()) + " " + formatarReais(p.getValor()))
+                .collect(java.util.stream.Collectors.joining(" + "));
     }
 
     public List<Venda> listarTodas() {

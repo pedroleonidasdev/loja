@@ -249,8 +249,9 @@ public class NotificacaoService {
 
     private String escapar(String texto) {
         return texto == null ? "" : texto
-                .replaceAll("\\p{Cntrl}", " ") // quebra de linha, tab etc. quebrariam o JSON
+                .replaceAll("[\\p{Cntrl}&&[^\\n]]", " ") // tab etc. quebrariam o JSON; \n é mantido (vira linha nova)
                 .replace("\\", "\\\\")
-                .replace("\"", "\\\"");
+                .replace("\"", "\\\"")
+                .replace("\n", "\\n");
     }
 }
