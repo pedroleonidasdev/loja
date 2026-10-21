@@ -297,6 +297,17 @@ public class ConsignacaoService {
         return consignacaoRepository.save(consignacao);
     }
 
+    /** Define/corrige o valor do recibo de uma consignação JÁ FECHADA (não mexe no estoque). */
+    @Transactional
+    public Consignacao definirValorRecibo(Long id, BigDecimal valorRecibo) {
+        Consignacao consignacao = buscarPorId(id);
+        if (consignacao.getStatus() != StatusConsignacao.FECHADA) {
+            throw new BusinessException("O valor do recibo só pode ser alterado depois de fechar a consignação.");
+        }
+        consignacao.setValorRecibo(valorRecibo);
+        return consignacaoRepository.save(consignacao);
+    }
+
     public List<Consignacao> listarTodas() {
         return consignacaoRepository.findAllByOrderByDataHoraDesc();
     }

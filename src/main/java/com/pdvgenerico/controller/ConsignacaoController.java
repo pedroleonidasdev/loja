@@ -4,6 +4,7 @@ import com.pdvgenerico.dto.ConsignacaoRequest;
 import com.pdvgenerico.dto.ConsignacaoResponse;
 import com.pdvgenerico.dto.FecharConsignacaoRequest;
 import com.pdvgenerico.dto.LeituraPaginaResponse;
+import com.pdvgenerico.dto.ValorReciboRequest;
 import com.pdvgenerico.model.Usuario;
 import com.pdvgenerico.service.ConsignacaoService;
 import com.pdvgenerico.service.LeituraConferenciaService;
@@ -70,6 +71,13 @@ public class ConsignacaoController {
     @PreAuthorize("hasAnyRole('ADMIN', 'CAIXA')")
     public ConsignacaoResponse corrigirConferencia(@PathVariable Long id, @Valid @RequestBody FecharConsignacaoRequest request) {
         return ConsignacaoResponse.fromEntity(consignacaoService.corrigirConferencia(id, request));
+    }
+
+    /** Define o valor do recibo de uma consignação já fechada (é o valor que entra no Faturamento). */
+    @PutMapping("/{id}/valor-recibo")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CAIXA')")
+    public ConsignacaoResponse definirValorRecibo(@PathVariable Long id, @Valid @RequestBody ValorReciboRequest request) {
+        return ConsignacaoResponse.fromEntity(consignacaoService.definirValorRecibo(id, request.valorRecibo()));
     }
 
     @DeleteMapping("/{id}")
