@@ -4,14 +4,18 @@ import com.pdvgenerico.dto.ProdutoRequest;
 import com.pdvgenerico.exception.BusinessException;
 import com.pdvgenerico.exception.ResourceNotFoundException;
 import com.pdvgenerico.model.Categoria;
+import com.pdvgenerico.model.ItemConsignacao;
 import com.pdvgenerico.model.Produto;
+import com.pdvgenerico.model.StatusConsignacao;
 import com.pdvgenerico.repository.CategoriaRepository;
+import com.pdvgenerico.repository.ItemConsignacaoRepository;
 import com.pdvgenerico.repository.ProdutoRepository;
 import com.pdvgenerico.util.GeradorCodigoBarras;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Service
@@ -20,6 +24,7 @@ public class ProdutoService {
 
     private final ProdutoRepository produtoRepository;
     private final CategoriaRepository categoriaRepository;
+    private final ItemConsignacaoRepository itemConsignacaoRepository;
 
     public List<Produto> listarTodos() {
         return produtoRepository.findByAtivoTrue();
@@ -81,6 +86,7 @@ public class ProdutoService {
     public Produto atualizar(Long id, ProdutoRequest request) {
         Produto produto = buscarPorId(id);
         Categoria categoria = resolverCategoria(request.categoriaId());
+        BigDecimal precoAntigo = produto.getPrecoVenda();
 
         produto.setNome(request.nome());
         produto.setCodigoBarras(request.codigoBarras());
@@ -90,7 +96,28 @@ public class ProdutoService {
         produto.setQuantidadeEstoque(request.quantidadeEstoque());
         produto.setEstoqueMinimo(request.estoqueMinimo());
 
-        return produtoRepository.save(produto);
+        Produto salvo = produtoRepository.save(produto);
+        refletirPrecoNasConsignacoesAbertas(salvo, precoAntigo);
+        return salvo;
+    }
+
+    /**
+     * Quando o preço de venda do cadastro muda, as consignações EM ABERTO acompanham: os itens que
+     * ainda estavam com o preço antigo do cadastro passam ao novo. Itens cujo preço foi alterado à
+     * mão na consignação (diferente do antigo cadastro) e consignações fechadas não são tocados.
+     */
+    private void refletirPrecoNasConsignacoesAbertas(Produto produto, BigDecimal precoAntigo) {
+        BigDecimal precoNovo = produto.getPrecoVenda();
+        if (precoAntigo == null || precoNovo == null || precoAntigo.compareTo(precoNovo) == 0) {
+            return;
+        }
+        for (ItemConsignacao item : itemConsignacaoRepository
+                .findByProdutoIdAndConsignacaoStatus(produto.getId(), StatusConsignacao.ABERTA)) {
+            if (item.getPrecoUnitario().compareTo(precoAntigo) == 0) {
+                item.setPrecoUnitario(precoNovo);
+                itemConsignacaoRepository.save(item);
+            }
+        }
     }
 
     @Transactional

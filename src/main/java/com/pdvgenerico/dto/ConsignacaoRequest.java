@@ -32,7 +32,7 @@ public record ConsignacaoRequest(
             @NotNull @Positive(message = "Quantidade deve ser maior que zero") Integer quantidade,
 
             /** Opcional: preço desta linha NESTA consignação (não altera o preço do produto no cadastro). */
-            @DecimalMin(value = "0.01", message = "Preço deve ser maior que zero")
+            @DecimalMin(value = "0.00", message = "Preço não pode ser negativo")
             @Digits(integer = 8, fraction = 2, message = "Preço inválido")
             BigDecimal precoUnitario
     ) {

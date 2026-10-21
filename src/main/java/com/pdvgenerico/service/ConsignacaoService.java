@@ -194,8 +194,12 @@ public class ConsignacaoService {
         }
 
         Map<Long, Integer> vendidoPorItem = new HashMap<>();
+        Map<Long, BigDecimal> precoPorItem = new HashMap<>();
         for (FecharConsignacaoRequest.ItemVendido v : request.itens()) {
             vendidoPorItem.put(v.itemId(), v.quantidadeVendida());
+            if (v.precoUnitario() != null) {
+                precoPorItem.put(v.itemId(), v.precoUnitario());
+            }
         }
         for (Long itemId : vendidoPorItem.keySet()) {
             boolean existe = consignacao.getItens().stream().anyMatch(i -> i.getId().equals(itemId));
@@ -205,6 +209,11 @@ public class ConsignacaoService {
         }
 
         for (ItemConsignacao item : consignacao.getItens()) {
+            // preço corrigido na hora do acerto (vale só para esta consignação)
+            BigDecimal precoNovo = precoPorItem.get(item.getId());
+            if (precoNovo != null) {
+                item.setPrecoUnitario(precoNovo);
+            }
             int vendida = vendidoPorItem.getOrDefault(item.getId(), 0);
             Produto produto = item.getProduto();
 
@@ -228,7 +237,7 @@ public class ConsignacaoService {
     }
 
     /**
-     * Corrige a conferência de uma consignação JÁ FECHADA: troca as quantidades vendidas e ajusta o
+     * Corrige a conferência de uma consignação JÁ FECHADA: troca as quantidades vendidas (e, se vier, o preço da linha) e ajusta o
      * estoque só pela diferença (vendeu mais = baixa a diferença; vendeu menos = devolve a diferença).
      * Itens que não vierem na lista ficam como estão.
      */
@@ -240,8 +249,12 @@ public class ConsignacaoService {
         }
 
         Map<Long, Integer> vendidoPorItem = new HashMap<>();
+        Map<Long, BigDecimal> precoPorItem = new HashMap<>();
         for (FecharConsignacaoRequest.ItemVendido v : request.itens()) {
             vendidoPorItem.put(v.itemId(), v.quantidadeVendida());
+            if (v.precoUnitario() != null) {
+                precoPorItem.put(v.itemId(), v.precoUnitario());
+            }
         }
         for (Long itemId : vendidoPorItem.keySet()) {
             boolean existe = consignacao.getItens().stream().anyMatch(i -> i.getId().equals(itemId));
@@ -251,6 +264,11 @@ public class ConsignacaoService {
         }
 
         for (ItemConsignacao item : consignacao.getItens()) {
+            // preço corrigido: não mexe no estoque, só nos valores (vendido, comissão, líquido)
+            BigDecimal precoNovo = precoPorItem.get(item.getId());
+            if (precoNovo != null) {
+                item.setPrecoUnitario(precoNovo);
+            }
             Integer nova = vendidoPorItem.get(item.getId());
             if (nova == null) {
                 continue;
