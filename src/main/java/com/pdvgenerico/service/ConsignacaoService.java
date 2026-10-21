@@ -63,12 +63,16 @@ public class ConsignacaoService {
 
         // Junta linhas repetidas do mesmo produto antes de validar o estoque.
         Map<Long, Integer> quantidadePorProduto = new HashMap<>();
+        Map<Long, BigDecimal> precoInformado = new HashMap<>();
         List<Long> ordem = new ArrayList<>();
         for (ConsignacaoRequest.ItemConsignacaoRequest itemReq : request.itens()) {
             if (!quantidadePorProduto.containsKey(itemReq.produtoId())) {
                 ordem.add(itemReq.produtoId());
             }
             quantidadePorProduto.merge(itemReq.produtoId(), itemReq.quantidade(), Integer::sum);
+            if (itemReq.precoUnitario() != null) {
+                precoInformado.put(itemReq.produtoId(), itemReq.precoUnitario());
+            }
         }
 
         List<ItemConsignacao> itens = new ArrayList<>();
@@ -89,7 +93,7 @@ public class ConsignacaoService {
                     .produto(produto)
                     .quantidadeEnviada(quantidade)
                     .quantidadeVendida(0)
-                    .precoUnitario(produto.getPrecoVenda())
+                    .precoUnitario(precoInformado.getOrDefault(produtoId, produto.getPrecoVenda()))
                     .percentualComissao(percentualComissaoPara(produto))
                     .build());
         }
@@ -102,7 +106,8 @@ public class ConsignacaoService {
      * Edita uma consignação AINDA ABERTA: dados do cabeçalho e a lista de itens
      * (acrescentar produtos, mudar quantidades, remover). A lista recebida é a lista
      * final: o que não vier nela é removido. Itens que já existiam mantêm o preço e a
-     * comissão gravados na criação; só os produtos novos usam o preço de hoje.
+     * comissão gravados na criação, a menos que a tela mande um preço novo para a linha; os produtos
+     * novos usam o preço informado ou, na falta dele, o preço de hoje do cadastro.
      * Como o estoque só dá baixa no fechamento, nada muda no estoque aqui.
      */
     @Transactional
@@ -114,8 +119,12 @@ public class ConsignacaoService {
 
         // junta linhas repetidas do mesmo produto, mantendo a ordem em que vieram
         Map<Long, Integer> quantidadePorProduto = new LinkedHashMap<>();
+        Map<Long, BigDecimal> precoInformado = new HashMap<>();
         for (ConsignacaoRequest.ItemConsignacaoRequest itemReq : request.itens()) {
             quantidadePorProduto.merge(itemReq.produtoId(), itemReq.quantidade(), Integer::sum);
+            if (itemReq.precoUnitario() != null) {
+                precoInformado.put(itemReq.produtoId(), itemReq.precoUnitario());
+            }
         }
 
         // 1) remove o que saiu da lista
@@ -135,6 +144,11 @@ public class ConsignacaoService {
                     validarEstoque(existente.getProduto(), e.getValue());
                 }
                 existente.setQuantidadeEnviada(e.getValue());
+                // preço da linha: se a tela mandou um preço, vale (é só desta consignação)
+                BigDecimal novoPreco = precoInformado.get(e.getKey());
+                if (novoPreco != null) {
+                    existente.setPrecoUnitario(novoPreco);
+                }
             }
         }
 
@@ -149,7 +163,7 @@ public class ConsignacaoService {
                     .produto(produto)
                     .quantidadeEnviada(e.getValue())
                     .quantidadeVendida(0)
-                    .precoUnitario(produto.getPrecoVenda())
+                    .precoUnitario(precoInformado.getOrDefault(e.getKey(), produto.getPrecoVenda()))
                     .percentualComissao(percentualComissaoPara(produto))
                     .build());
         }
@@ -210,6 +224,53 @@ public class ConsignacaoService {
 
         consignacao.setStatus(StatusConsignacao.FECHADA);
         consignacao.setDataFechamento(LocalDateTime.now(ZoneOffset.UTC));
+        return consignacaoRepository.save(consignacao);
+    }
+
+    /**
+     * Corrige a conferência de uma consignação JÁ FECHADA: troca as quantidades vendidas e ajusta o
+     * estoque só pela diferença (vendeu mais = baixa a diferença; vendeu menos = devolve a diferença).
+     * Itens que não vierem na lista ficam como estão.
+     */
+    @Transactional
+    public Consignacao corrigirConferencia(Long id, FecharConsignacaoRequest request) {
+        Consignacao consignacao = buscarPorId(id);
+        if (consignacao.getStatus() != StatusConsignacao.FECHADA) {
+            throw new BusinessException("Só é possível corrigir a conferência de uma consignação já fechada.");
+        }
+
+        Map<Long, Integer> vendidoPorItem = new HashMap<>();
+        for (FecharConsignacaoRequest.ItemVendido v : request.itens()) {
+            vendidoPorItem.put(v.itemId(), v.quantidadeVendida());
+        }
+        for (Long itemId : vendidoPorItem.keySet()) {
+            boolean existe = consignacao.getItens().stream().anyMatch(i -> i.getId().equals(itemId));
+            if (!existe) {
+                throw new BusinessException("Item " + itemId + " não pertence a esta consignação");
+            }
+        }
+
+        for (ItemConsignacao item : consignacao.getItens()) {
+            Integer nova = vendidoPorItem.get(item.getId());
+            if (nova == null) {
+                continue;
+            }
+            Produto produto = item.getProduto();
+            if (nova > item.getQuantidadeEnviada()) {
+                throw new BusinessException("Quantidade vendida de \"" + produto.getNome()
+                        + "\" (" + nova + ") é maior que a enviada (" + item.getQuantidadeEnviada() + ")");
+            }
+            int diferenca = nova - item.getQuantidadeVendida();
+            if (diferenca > 0 && produto.getQuantidadeEstoque() < diferenca) {
+                throw new BusinessException("Estoque insuficiente para dar baixa em \"" + produto.getNome()
+                        + "\" (estoque: " + produto.getQuantidadeEstoque() + ", a mais vendido: " + diferenca + ")");
+            }
+            if (diferenca != 0) {
+                item.setQuantidadeVendida(nova);
+                produto.setQuantidadeEstoque(produto.getQuantidadeEstoque() - diferenca);
+                produtoRepository.save(produto);
+            }
+        }
         return consignacaoRepository.save(consignacao);
     }
 

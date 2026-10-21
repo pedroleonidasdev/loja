@@ -1,12 +1,15 @@
 package com.pdvgenerico.dto;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -26,7 +29,12 @@ public record ConsignacaoRequest(
 ) {
     public record ItemConsignacaoRequest(
             @NotNull Long produtoId,
-            @NotNull @Positive(message = "Quantidade deve ser maior que zero") Integer quantidade
+            @NotNull @Positive(message = "Quantidade deve ser maior que zero") Integer quantidade,
+
+            /** Opcional: preço desta linha NESTA consignação (não altera o preço do produto no cadastro). */
+            @DecimalMin(value = "0.01", message = "Preço deve ser maior que zero")
+            @Digits(integer = 8, fraction = 2, message = "Preço inválido")
+            BigDecimal precoUnitario
     ) {
     }
 }

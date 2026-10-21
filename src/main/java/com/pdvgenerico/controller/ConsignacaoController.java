@@ -65,6 +65,13 @@ public class ConsignacaoController {
         return leituraConferenciaService.lerPagina(id, imagem);
     }
 
+    /** Corrige a conferência de uma consignação já fechada (ajusta o estoque pela diferença). */
+    @PutMapping("/{id}/conferencia")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CAIXA')")
+    public ConsignacaoResponse corrigirConferencia(@PathVariable Long id, @Valid @RequestBody FecharConsignacaoRequest request) {
+        return ConsignacaoResponse.fromEntity(consignacaoService.corrigirConferencia(id, request));
+    }
+
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> excluir(@PathVariable Long id) {
