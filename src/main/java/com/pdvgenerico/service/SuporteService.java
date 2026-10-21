@@ -34,6 +34,7 @@ public class SuporteService {
     public static final String TIPO_CHAMADA = "CHAMADA";
     public static final String TIPO_FIGURINHA = "FIGURINHA";
     public static final String TIPO_AUDIO = "AUDIO";
+    public static final String TIPO_ARQUIVO = "ARQUIVO";
     private static final int MAX_FIGURINHA = 80;
 
     private static final Duration RETENCAO = Duration.ofDays(30);
@@ -128,6 +129,22 @@ public class SuporteService {
                 .destinatarioId(outroId)
                 .texto(String.valueOf(duracaoSegundos))
                 .tipo(TIPO_AUDIO)
+                .criadaEm(Instant.now())
+                .build());
+    }
+
+    /**
+     * Cria a mensagem de um arquivo anexado (o texto guarda nome, tamanho e tipo em JSON). Os bytes
+     * são salvos à parte por {@link AnexoSuporteService}.
+     */
+    @Transactional
+    public MensagemSuporte registrarAnexo(Usuario eu, Long outroId, String textoMeta) {
+        validarContato(eu, outroId);
+        return repository.save(MensagemSuporte.builder()
+                .remetenteId(eu.getId())
+                .destinatarioId(outroId)
+                .texto(textoMeta)
+                .tipo(TIPO_ARQUIVO)
                 .criadaEm(Instant.now())
                 .build());
     }

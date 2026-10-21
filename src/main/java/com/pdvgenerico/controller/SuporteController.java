@@ -4,6 +4,7 @@ import com.pdvgenerico.dto.ContatoSuporteResponse;
 import com.pdvgenerico.dto.MensagemSuporteRequest;
 import com.pdvgenerico.dto.MensagemSuporteResponse;
 import com.pdvgenerico.model.Usuario;
+import com.pdvgenerico.service.AnexoSuporteService;
 import com.pdvgenerico.service.AudioSuporteService;
 import com.pdvgenerico.service.SuporteService;
 import jakarta.validation.Valid;
@@ -22,6 +23,7 @@ public class SuporteController {
 
     private final SuporteService suporteService;
     private final AudioSuporteService audioSuporteService;
+    private final AnexoSuporteService anexoSuporteService;
 
     @GetMapping("/contatos")
     public List<ContatoSuporteResponse> contatos(@AuthenticationPrincipal Usuario eu) {
@@ -56,5 +58,6 @@ public class SuporteController {
     public void apagarConversa(@AuthenticationPrincipal Usuario eu, @PathVariable Long outroId) {
         suporteService.apagarConversa(eu, outroId);
         audioSuporteService.limparAudios(); // áudios das mensagens que sumiram de vez
+        anexoSuporteService.limparAnexos(); // arquivos das mensagens que sumiram de vez
     }
 }
