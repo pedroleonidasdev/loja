@@ -4,6 +4,7 @@ import com.pdvgenerico.dto.CaixaRequest;
 import com.pdvgenerico.exception.BusinessException;
 import com.pdvgenerico.exception.ResourceNotFoundException;
 import com.pdvgenerico.model.Caixa;
+import com.pdvgenerico.model.Perfil;
 import com.pdvgenerico.model.Usuario;
 import com.pdvgenerico.repository.CaixaRepository;
 import lombok.RequiredArgsConstructor;
@@ -52,6 +53,31 @@ public class CaixaService {
         return caixaRepository.findByDataAberturaBetweenOrderByDataAberturaDesc(inicio, fim);
     }
 
+
+    /**
+     * Regra: quem opera o caixa aberto (vender, corrigir abertura, fechar) tem que ser
+     * a mesma pessoa que o abriu. O usuário é sempre o do token (JWT) da requisição, nunca
+     * o que o frontend diz. ADMIN é exceção, para poder resolver caixa esquecido/de outro
+     * turno. Sem caixa aberto não há o que conferir (o PDV já bloqueia a venda).
+     */
+    @Transactional(readOnly = true)
+    public void exigirOperadorDoCaixa(Usuario usuarioLogado) {
+        buscarCaixaAberto().ifPresent(caixa -> exigirOperadorDoCaixa(caixa, usuarioLogado));
+    }
+
+    private void exigirOperadorDoCaixa(Caixa caixa, Usuario usuarioLogado) {
+        if (usuarioLogado.getPerfil() == Perfil.ADMIN) {
+            return;
+        }
+        Usuario quemAbriu = caixa.getUsuarioAbertura();
+        boolean mesmo = quemAbriu != null && quemAbriu.getId().equals(usuarioLogado.getId());
+        if (!mesmo) {
+            String nome = quemAbriu != null ? quemAbriu.getNome() : "outro usuário";
+            throw new BusinessException("O caixa foi aberto por " + nome + ". Entre com esse usuário para operar "
+                    + "o caixa, ou peça a um administrador.");
+        }
+    }
+
     @Transactional
     public Caixa abrir(CaixaRequest request, Usuario usuarioLogado) {
         if (buscarCaixaAberto().isPresent()) {
@@ -94,6 +120,7 @@ public class CaixaService {
             throw new BusinessException(
                     "Só é possível corrigir o valor de abertura de um caixa aberto. Peça a um administrador para reabrir o caixa.");
         }
+        exigirOperadorDoCaixa(caixa, usuarioLogado);
 
         BigDecimal anterior = caixa.getValorInicial();
         BigDecimal novo = request.valorInicial();
@@ -124,6 +151,7 @@ public class CaixaService {
     public Caixa fechar(CaixaRequest.FechamentoRequest request, Usuario usuarioLogado) {
         Caixa caixa = buscarCaixaAberto()
                 .orElseThrow(() -> new ResourceNotFoundException("Não há caixa aberto no momento."));
+        exigirOperadorDoCaixa(caixa, usuarioLogado);
 
         caixa.setUsuarioFechamento(usuarioLogado);
         caixa.setValorFinal(request.valorFinal());
