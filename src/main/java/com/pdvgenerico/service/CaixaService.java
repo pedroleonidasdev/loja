@@ -8,6 +8,7 @@ import com.pdvgenerico.model.Perfil;
 import com.pdvgenerico.model.Usuario;
 import com.pdvgenerico.repository.CaixaRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,6 +19,7 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class CaixaService {
@@ -80,6 +82,18 @@ public class CaixaService {
 
     @Transactional
     public Caixa abrir(CaixaRequest request, Usuario usuarioLogado) {
+        // Quem abre o caixa TEM que ser o usuário que está logado. O servidor sempre grava o
+        // dono do token; se a tela informar outro login (sessão trocada em outra aba, tela
+        // desatualizada...), recusa em vez de gravar a pessoa errada.
+        String loginDaTela = request.loginLogado() == null ? "" : request.loginLogado().trim();
+        if (!loginDaTela.isEmpty() && !loginDaTela.equalsIgnoreCase(usuarioLogado.getLogin())) {
+            log.warn("Abertura de caixa recusada: tela mostrava '{}' mas o token pertence a '{}'",
+                    loginDaTela, usuarioLogado.getLogin());
+            throw new BusinessException("O usuário mostrado na tela (" + loginDaTela
+                    + ") não é o mesmo da sessão ativa (" + usuarioLogado.getLogin()
+                    + "). O caixa NÃO foi aberto. Atualize a página ou entre novamente com o seu usuário.");
+        }
+
         if (buscarCaixaAberto().isPresent()) {
             throw new BusinessException("Já existe um caixa aberto. Feche o caixa atual antes de abrir um novo.");
         }
@@ -94,6 +108,8 @@ public class CaixaService {
                 .build();
 
         Caixa caixaSalvo = caixaRepository.save(caixa);
+        log.info("Caixa #{} aberto por '{}' ({}) com valor inicial {}",
+                caixaSalvo.getId(), usuarioLogado.getLogin(), usuarioLogado.getNome(), request.valorInicial());
 
         notificacaoService.notificarAdmins(
                 "Caixa aberto",
