@@ -6,7 +6,6 @@ import com.pdvgenerico.dto.VendaRequest;
 import com.pdvgenerico.dto.VendaResponse;
 import com.pdvgenerico.model.Usuario;
 import com.pdvgenerico.model.Venda;
-import com.pdvgenerico.service.CaixaService;
 import com.pdvgenerico.service.VendaService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -25,14 +24,13 @@ import java.util.List;
 public class VendaController {
 
     private final VendaService vendaService;
-    private final CaixaService caixaService;
 
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'CAIXA')")
     public ResponseEntity<VendaResponse> registrar(@Valid @RequestBody VendaRequest request,
                                                    @AuthenticationPrincipal Usuario usuarioLogado) {
-        // só quem abriu o caixa (ou um ADMIN) registra venda enquanto ele estiver aberto
-        caixaService.exigirOperadorDoCaixa(usuarioLogado);
+        // qualquer ADMIN/CAIXA pode vender com o caixa aberto, mesmo que outra pessoa o tenha aberto
+        // (fechar/editar o caixa continua restrito a quem abriu ou ADMIN, ver CaixaService)
         return ResponseEntity.ok(VendaResponse.fromEntity(vendaService.registrarVenda(request, usuarioLogado)));
     }
 
