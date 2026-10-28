@@ -47,6 +47,27 @@ public class MensagemSuporte {
     @Column(length = 20)
     private String tipo;
 
+    /** Mensagem à qual esta responde (citação, como no WhatsApp); nulo se não for resposta. */
+    @Column(name = "resposta_a_id")
+    private Long respostaAId;
+
+    /** Reação (emoji) de cada lado a esta mensagem; nulo = sem reação. */
+    @Column(length = 16)
+    private String reacaoRemetente;
+
+    @Column(length = 16)
+    private String reacaoDestinatario;
+
+    /** Texto alterado depois de enviado ("editada"). */
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    @Builder.Default
+    private boolean editada = false;
+
+    /** "Apagar para todos": o conteúdo some dos dois lados e fica só o aviso "Mensagem apagada". */
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    @Builder.Default
+    private boolean apagadaParaTodos = false;
+
     /** "Apagar conversa" é por usuário: cada lado esconde só o que é seu. */
     @Column(nullable = false, columnDefinition = "boolean default false")
     @Builder.Default

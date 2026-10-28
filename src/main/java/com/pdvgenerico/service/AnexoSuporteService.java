@@ -112,7 +112,7 @@ public class AnexoSuporteService {
                 .orElseThrow(() -> new ResourceNotFoundException("Anexo não encontrado"));
         boolean souRemetente = eu.getId().equals(m.getRemetenteId()) && !m.isApagadaRemetente();
         boolean souDestinatario = eu.getId().equals(m.getDestinatarioId()) && !m.isApagadaDestinatario();
-        if (!SuporteService.TIPO_ARQUIVO.equals(m.getTipo()) || !(souRemetente || souDestinatario)) {
+        if (m.isApagadaParaTodos() || !SuporteService.TIPO_ARQUIVO.equals(m.getTipo()) || !(souRemetente || souDestinatario)) {
             throw new ResourceNotFoundException("Anexo não encontrado");
         }
         AnexoPrivado anexo = anexoRepository.findByMensagemId(mensagemId)
