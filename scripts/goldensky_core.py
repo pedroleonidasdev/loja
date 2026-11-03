@@ -47,7 +47,11 @@ DPI = 203  # resolução nativa da cabeça de impressão da Goldensky 80mm
 
 # limites de sanidade — a cabeça de impressão da Goldensky-80 imprime no
 # máximo ~80mm de largura; abaixo disso é só para evitar valor absurdo digitado
-LARGURA_MIN_MM, LARGURA_MAX_MM = 20, 80
+# Driver de etiquetas: "escpos" (Goldensky 80mm, raster via CUPS) ou "zpl"
+# (Elgin/Bematech L42 Pro Full, ZPL II — veja elgin_l42.py).
+DRIVER = os.environ.get("ETIQUETA_DRIVER", "escpos").lower()
+
+LARGURA_MIN_MM, LARGURA_MAX_MM = 20, (108 if DRIVER == "zpl" else 80)
 ALTURA_MIN_MM, ALTURA_MAX_MM = 10, 150
 ESPACAMENTO_MIN_MM, ESPACAMENTO_MAX_MM = 0, 30
 
@@ -80,7 +84,7 @@ def _validar_dimensoes(largura_mm: float, altura_mm: float, espacamento_mm: floa
     if not (LARGURA_MIN_MM <= largura_mm <= LARGURA_MAX_MM):
         raise EtiquetaError(
             f"Largura da etiqueta deve estar entre {LARGURA_MIN_MM}mm e {LARGURA_MAX_MM}mm "
-            f"(a Goldensky-80 imprime no máximo {LARGURA_MAX_MM}mm de largura)"
+            f"(a impressora imprime no máximo {LARGURA_MAX_MM}mm de largura)"
         )
     if not (ALTURA_MIN_MM <= altura_mm <= ALTURA_MAX_MM):
         raise EtiquetaError(f"Altura da etiqueta deve estar entre {ALTURA_MIN_MM}mm e {ALTURA_MAX_MM}mm")
@@ -282,6 +286,9 @@ def imprimir_etiquetas(
 
     _validar_dimensoes(largura_mm, altura_mm, espacamento_mm)
 
+    if DRIVER == "zpl":
+        return _imprimir_etiquetas_zpl(etiquetas, largura_mm, altura_mm)
+
     dados = montar_stream_escpos(etiquetas, largura_mm, altura_mm, espacamento_mm)
 
     if DRY_RUN:
@@ -290,6 +297,25 @@ def imprimir_etiquetas(
         return len(etiquetas)
 
     enviar_para_cups(dados)
+    return len(etiquetas)
+
+
+def _imprimir_etiquetas_zpl(etiquetas: list, largura_mm: float, altura_mm: float) -> int:
+    """Caminho da Elgin L42 Pro Full: gera ZPL (sem rasterizar) e envia por CUPS raw ou TCP 9100.
+    O espaçamento entre etiquetas não é usado: a própria impressora detecta o gap."""
+    import elgin_l42
+
+    if len(etiquetas) > MAX_ETIQUETAS_POR_LOTE:
+        raise EtiquetaError(f"O lote aceita no máximo {MAX_ETIQUETAS_POR_LOTE} etiquetas por requisição")
+    try:
+        dados = elgin_l42.montar_zpl(etiquetas, largura_mm, altura_mm)
+        if DRY_RUN:
+            with open(DRY_RUN_OUTPUT, "wb") as f:
+                f.write(dados)
+        else:
+            elgin_l42.enviar(dados)
+    except elgin_l42.ElginError as e:
+        raise EtiquetaError(str(e))
     return len(etiquetas)
 
 

@@ -38,10 +38,11 @@ fi
 
 echo "Copiando os scripts para ${DESTINO_BIN}..."
 cp "${SCRIPT_DIR}/goldensky_core.py" "${DESTINO_BIN}/goldensky_core.py"
+cp "${SCRIPT_DIR}/elgin_l42.py" "${DESTINO_BIN}/elgin_l42.py"
 cp "${SCRIPT_DIR}/goldensky-etiquetas.py" "${DESTINO_BIN}/goldensky-etiquetas.py"
 cp "${SCRIPT_DIR}/goldensky-agente.py" "${DESTINO_BIN}/goldensky-agente.py"
 chmod 755 "${DESTINO_BIN}/goldensky-etiquetas.py" "${DESTINO_BIN}/goldensky-agente.py"
-chmod 644 "${DESTINO_BIN}/goldensky_core.py"
+chmod 644 "${DESTINO_BIN}/goldensky_core.py" "${DESTINO_BIN}/elgin_l42.py"
 
 echo "Criando usuário de sistema goldensky-agente (sem login, sem privilégios)..."
 if ! id -u goldensky-agente >/dev/null 2>&1; then

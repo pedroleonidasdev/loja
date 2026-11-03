@@ -1,6 +1,8 @@
 package com.pdvgenerico.dto;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -18,7 +20,9 @@ public record EtiquetaImpressaoRequest(
     public record Item(
             @NotBlank String nome,
             @NotNull BigDecimal precoVenda,
-            @NotBlank String codigoBarras
+            @NotBlank String codigoBarras,
+            // opcional: copias da mesma etiqueta (so usado pelo driver ZPL da Elgin L42; padrao 1)
+            @Min(1) @Max(100) Integer quantidade
     ) {
     }
 }

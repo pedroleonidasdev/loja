@@ -22,7 +22,7 @@ Dependências (Linux Mint / Ubuntu):
 import json
 import sys
 
-from goldensky_core import EtiquetaError, imprimir_etiquetas, DRY_RUN, DRY_RUN_OUTPUT, CUPS_QUEUE
+from goldensky_core import EtiquetaError, imprimir_etiquetas, DRY_RUN, DRY_RUN_OUTPUT, CUPS_QUEUE, DRIVER
 
 
 def erro(mensagem: str, codigo: int = 1) -> None:
@@ -53,7 +53,7 @@ def main() -> None:
     if DRY_RUN:
         sys.stdout.write(f"[dry-run] {quantidade} etiqueta(s) geradas em {DRY_RUN_OUTPUT}\n")
     else:
-        sys.stdout.write(f"{quantidade} etiqueta(s) enviada(s) para {CUPS_QUEUE}\n")
+        sys.stdout.write(f"{quantidade} etiqueta(s) enviada(s) para {'a Elgin L42 (ZPL)' if DRIVER == 'zpl' else CUPS_QUEUE}\n")
 
 
 if __name__ == "__main__":
