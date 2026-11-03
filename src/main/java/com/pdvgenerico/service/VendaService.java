@@ -89,8 +89,10 @@ public class VendaService {
             throw new BusinessException("A data e hora da venda não pode estar no futuro.");
         }
 
+        // só ADMIN escolhe o vendedor; quem não é ADMIN (liberado no controller) lança
+        // sempre no próprio nome, mesmo que o pedido venha com outro usuarioId
         Usuario vendedor = adminLogado;
-        if (request.usuarioId() != null) {
+        if (request.usuarioId() != null && adminLogado.getPerfil() == Perfil.ADMIN) {
             vendedor = usuarioRepository.findById(request.usuarioId())
                     .orElseThrow(() -> new BusinessException("Vendedor não encontrado."));
         }

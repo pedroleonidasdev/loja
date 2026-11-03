@@ -36,9 +36,10 @@ public class VendaController {
     }
 
     // registra uma venda que aconteceu antes (ex.: feita com o caixa já fechado), com
-    // data/hora anterior e vendedor escolhidos. Restrito a ADMIN.
+    // data/hora anterior e vendedor escolhidos. Restrito a ADMIN e ao usuário "santinha"
+    // (liberada a pedido da loja; ela não escolhe vendedor — ver VendaService).
     @PostMapping("/retroativa")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN') or authentication.name == 'santinha'")
     public ResponseEntity<VendaResponse> registrarRetroativa(@Valid @RequestBody VendaRetroativaRequest request,
                                                              @AuthenticationPrincipal Usuario adminLogado) {
         return ResponseEntity.ok(VendaResponse.fromEntity(vendaService.registrarVendaRetroativa(request, adminLogado)));
