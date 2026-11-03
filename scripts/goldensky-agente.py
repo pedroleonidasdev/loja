@@ -25,7 +25,7 @@ Endpoints:
                               itens, subtotal, desconto, total, pagamentos) —
                               é o mesmo formato que o frontend do PDV envia ao
                               fechar uma venda. Imprime o recibo não fiscal.
-  GET  /status                healthcheck simples
+  GET  /status                healthcheck + driver de etiquetas em uso (escpos/zpl)
 
 Dependências (Linux Mint / Ubuntu):
   sudo apt install -y cups-client python3 python3-pil python3-reportlab poppler-utils
@@ -36,7 +36,9 @@ import os
 import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from goldensky_core import CupomError, EtiquetaError, imprimir_cupom, imprimir_etiquetas
+from goldensky_core import (
+    CupomError, EtiquetaError, DRIVER, LARGURA_MAX_MM, imprimir_cupom, imprimir_etiquetas,
+)
 
 HOST = os.environ.get("GOLDENSKY_AGENTE_HOST", "127.0.0.1")
 PORT = int(os.environ.get("GOLDENSKY_AGENTE_PORT", "9100"))
@@ -76,7 +78,15 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if self.path == "/status":
-            self._responder_json(200, {"status": "ok"})
+            # o frontend usa isso para adaptar a tela de etiquetas à impressora em uso
+            zpl = DRIVER == "zpl"
+            self._responder_json(200, {
+                "status": "ok",
+                "driver": "zpl" if zpl else "escpos",
+                "impressora": "Elgin L42 Pro Full" if zpl else "Goldensky 80mm",
+                "larguraMaxMm": LARGURA_MAX_MM,
+                "suportaQuantidade": zpl,  # ZPL repete via ^PQ; ESC/POS o frontend repete os itens
+            })
         else:
             self._responder_json(404, {"mensagem": "Rota não encontrada"})
 

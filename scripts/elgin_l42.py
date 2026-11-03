@@ -102,8 +102,14 @@ def _montar_etiqueta(nome: str, preco: str, codigo: str, qtd: int, largura_mm: f
     util = W - 2 * margem
 
     # módulo do código de barras: 2 dots (~0,25 mm) quando cabe, senão 1
-    bw = 2 if _modulos_code128(codigo) * 2 <= util else 1
-    barcode_w = _modulos_code128(codigo) * bw
+    modulos = _modulos_code128(codigo)
+    bw = 2 if modulos * 2 <= util else 1
+    barcode_w = modulos * bw
+    if barcode_w > util:
+        raise ElginError(
+            f"O código de barras '{codigo}' é longo demais para uma etiqueta de {largura_mm:g}mm de largura. "
+            "Aumente a largura da etiqueta ou use um código mais curto."
+        )
     barcode_x = max(margem, (W - barcode_w) // 2)
 
     y_nome, fonte_nome = round(H * 0.04), max(18, round(H * 0.11))
@@ -115,7 +121,7 @@ def _montar_etiqueta(nome: str, preco: str, codigo: str, qtd: int, largura_mm: f
         f"^FO{margem},{y_nome}^A0N,{fonte_nome},{fonte_nome}^FB{util},2,0,C,0^FH^FD{_escapar_zpl(nome)}^FS",
         f"^FO{margem},{y_preco}^A0N,{fonte_preco},{fonte_preco}^FB{util},1,0,C,0^FH^FD{_escapar_zpl(preco)}^FS",
         f"^BY{bw},3,{altura_barras}",
-        f"^FO{barcode_x},{y_barras}^BCN,{altura_barras},Y,N,N^FH^FD{_escapar_zpl(codigo)}^FS",
+        f"^FO{barcode_x},{y_barras}^BCN,{altura_barras},Y,N,N,A^FH^FD{_escapar_zpl(codigo)}^FS",
         f"^PQ{qtd},0,1,N",
         "^XZ",
     ])
