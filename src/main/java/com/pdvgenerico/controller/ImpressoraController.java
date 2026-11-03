@@ -24,6 +24,6 @@ public class ImpressoraController {
     @PreAuthorize("hasAnyRole('ADMIN', 'CAIXA')")
     public ResponseEntity<Map<String, String>> imprimirEtiquetas(@Valid @RequestBody EtiquetaImpressaoRequest request) {
         impressoraEtiquetaService.imprimir(request);
-        return ResponseEntity.ok(Map.of("mensagem", "Etiquetas enviadas para a Goldensky."));
+        return ResponseEntity.ok(Map.of("mensagem", "Etiquetas enviadas para a impressora de etiquetas."));
     }
 }

@@ -1,5 +1,5 @@
 [Unit]
-Description=Agente HTTP local de impressao de etiquetas Goldensky
+Description=Agente HTTP local de impressao (cupom na Goldensky, etiquetas na Elgin)
 After=network.target cups.service
 
 [Service]
@@ -7,11 +7,13 @@ Type=simple
 ExecStart=/usr/bin/python3 /usr/local/bin/goldensky-agente.py
 Environment=GOLDENSKY_AGENTE_HOST=127.0.0.1
 Environment=GOLDENSKY_AGENTE_PORT=9100
-# --- Elgin L42 Pro Full (ZPL). Descomente para usar no lugar da Goldensky nas etiquetas:
-#Environment=ETIQUETA_DRIVER=zpl
-#Environment=ELGIN_TRANSPORTE=cups
-#Environment=ELGIN_CUPS_QUEUE=Elgin-L42
-# ou, pela rede (Ethernet):
+# Goldensky 80mm = SOMENTE cupom não fiscal (fila CUPS abaixo).
+Environment=GOLDENSKY_CUPS_QUEUE=Goldensky-80
+# Elgin L42 Pro Full = SOMENTE etiquetas de preço (ZPL).
+Environment=ETIQUETA_DRIVER=zpl
+Environment=ELGIN_TRANSPORTE=cups
+Environment=ELGIN_CUPS_QUEUE=Elgin-L42
+# ou, se a Elgin estiver na rede (Ethernet), troque as 2 linhas acima por:
 #Environment=ELGIN_TRANSPORTE=tcp
 #Environment=ELGIN_HOST=192.168.0.50
 Restart=on-failure

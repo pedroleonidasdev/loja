@@ -47,9 +47,12 @@ DPI = 203  # resolução nativa da cabeça de impressão da Goldensky 80mm
 
 # limites de sanidade — a cabeça de impressão da Goldensky-80 imprime no
 # máximo ~80mm de largura; abaixo disso é só para evitar valor absurdo digitado
-# Driver de etiquetas: "escpos" (Goldensky 80mm, raster via CUPS) ou "zpl"
-# (Elgin/Bematech L42 Pro Full, ZPL II — veja elgin_l42.py).
-DRIVER = os.environ.get("ETIQUETA_DRIVER", "escpos").lower()
+# Divisão das impressoras da loja:
+#   - Goldensky 80mm (fila CUPS GOLDENSKY_CUPS_QUEUE) -> SOMENTE cupom não fiscal
+#   - Elgin/Bematech L42 Pro Full (ZPL II, veja elgin_l42.py) -> SOMENTE etiquetas de preço
+# O padrão agora é "zpl" (Elgin). "escpos" (etiquetas na Goldensky) é o modo antigo e
+# só é usado se alguém definir ETIQUETA_DRIVER=escpos de propósito.
+DRIVER = os.environ.get("ETIQUETA_DRIVER", "zpl").lower()
 
 LARGURA_MIN_MM, LARGURA_MAX_MM = 20, (108 if DRIVER == "zpl" else 80)
 ALTURA_MIN_MM, ALTURA_MAX_MM = 10, 150

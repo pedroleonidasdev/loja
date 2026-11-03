@@ -27,6 +27,9 @@ Endpoints:
                               fechar uma venda. Imprime o recibo não fiscal.
   GET  /status                healthcheck + driver de etiquetas em uso (escpos/zpl)
 
+Impressoras: cupom -> Goldensky 80mm (fila CUPS Goldensky-80); etiquetas -> Elgin L42
+(ETIQUETA_DRIVER=zpl, o padrão). Veja o goldensky-agente.service.
+
 Dependências (Linux Mint / Ubuntu):
   sudo apt install -y cups-client python3 python3-pil python3-reportlab poppler-utils
 """
@@ -86,6 +89,8 @@ class Handler(BaseHTTPRequestHandler):
                 "impressora": "Elgin L42 Pro Full" if zpl else "Goldensky 80mm",
                 "larguraMaxMm": LARGURA_MAX_MM,
                 "suportaQuantidade": zpl,  # ZPL repete via ^PQ; ESC/POS o frontend repete os itens
+                # a Goldensky fica só com o cupom não fiscal
+                "impressoraCupom": "Goldensky 80mm",
             })
         else:
             self._responder_json(404, {"mensagem": "Rota não encontrada"})
@@ -140,7 +145,8 @@ class Handler(BaseHTTPRequestHandler):
             self._responder_json(500, {"mensagem": "Erro inesperado ao acionar a impressora"})
             return
 
-        self._responder_json(200, {"mensagem": f"{quantidade} etiqueta(s) enviada(s) para a Goldensky."})
+        destino = "a Elgin L42" if DRIVER == "zpl" else "a Goldensky"
+        self._responder_json(200, {"mensagem": f"{quantidade} etiqueta(s) enviada(s) para {destino}."})
 
     def _tratar_imprimir_cupom(self):
         try:

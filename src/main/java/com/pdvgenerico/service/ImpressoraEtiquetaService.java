@@ -16,7 +16,7 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * Aciona o agente local goldensky-etiquetas.py, que roda no mesmo computador que
- * tem a impressora térmica Goldensky-80 conectada via USB e a fila CUPS configurada.
+ * tem a impressora de etiquetas (Elgin L42) conectada. A Goldensky-80 fica só com o cupom.
  * Se o backend estiver hospedado em nuvem (Render, etc.) e não neste computador,
  * esse serviço não vai conseguir imprimir — a impressora é um recurso local.
  */
@@ -66,7 +66,7 @@ public class ImpressoraEtiquetaService {
             boolean terminou = process.waitFor(timeoutSegundos, TimeUnit.SECONDS);
             if (!terminou) {
                 process.destroyForcibly();
-                throw new BusinessException("A impressora não respondeu a tempo. Verifique a fila Goldensky-80.");
+                throw new BusinessException("A impressora não respondeu a tempo. Verifique a impressora de etiquetas (fila Elgin-L42).");
             }
 
             String stderr = new String(process.getErrorStream().readAllBytes(), StandardCharsets.UTF_8).trim();

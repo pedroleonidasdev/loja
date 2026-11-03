@@ -64,12 +64,21 @@ else
   echo "  sudo journalctl -u goldensky-agente -n 50"
 fi
 
-echo "Verificando fila CUPS Goldensky-80..."
+echo "Verificando fila CUPS Goldensky-80 (cupom não fiscal)..."
 if lpstat -p Goldensky-80 >/dev/null 2>&1; then
   echo "Fila Goldensky-80 encontrada."
 else
   echo "AVISO: a fila 'Goldensky-80' ainda não existe ou não está ativa."
   echo "Configure a impressora no CUPS (http://localhost:631) com esse nome exato antes de imprimir."
+fi
+
+echo "Verificando fila CUPS Elgin-L42 (etiquetas)..."
+if lpstat -p Elgin-L42 >/dev/null 2>&1; then
+  echo "Fila Elgin-L42 encontrada."
+else
+  echo "AVISO: a fila 'Elgin-L42' ainda não existe ou não está ativa."
+  echo "Crie no CUPS (http://localhost:631) uma fila RAW com esse nome exato, apontando para a Elgin,"
+  echo "ou use ELGIN_TRANSPORTE=tcp + ELGIN_HOST no serviço se ela estiver na rede."
 fi
 
 echo ""
