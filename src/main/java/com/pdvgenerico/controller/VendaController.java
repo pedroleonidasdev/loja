@@ -3,6 +3,7 @@ package com.pdvgenerico.controller;
 import com.pdvgenerico.dto.EditarDataHoraRequest;
 import com.pdvgenerico.dto.EditarFormaPagamentoRequest;
 import com.pdvgenerico.dto.VendaRequest;
+import com.pdvgenerico.dto.VendaRetroativaRequest;
 import com.pdvgenerico.dto.VendaResponse;
 import com.pdvgenerico.model.Usuario;
 import com.pdvgenerico.model.Venda;
@@ -32,6 +33,15 @@ public class VendaController {
         // qualquer ADMIN/CAIXA pode vender com o caixa aberto, mesmo que outra pessoa o tenha aberto
         // (fechar/editar o caixa continua restrito a quem abriu ou ADMIN, ver CaixaService)
         return ResponseEntity.ok(VendaResponse.fromEntity(vendaService.registrarVenda(request, usuarioLogado)));
+    }
+
+    // registra uma venda que aconteceu antes (ex.: feita com o caixa já fechado), com
+    // data/hora anterior e vendedor escolhidos. Restrito a ADMIN.
+    @PostMapping("/retroativa")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<VendaResponse> registrarRetroativa(@Valid @RequestBody VendaRetroativaRequest request,
+                                                             @AuthenticationPrincipal Usuario adminLogado) {
+        return ResponseEntity.ok(VendaResponse.fromEntity(vendaService.registrarVendaRetroativa(request, adminLogado)));
     }
 
     @GetMapping

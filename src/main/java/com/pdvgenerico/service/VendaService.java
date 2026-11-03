@@ -3,6 +3,7 @@ package com.pdvgenerico.service;
 import com.pdvgenerico.dto.EditarDataHoraRequest;
 import com.pdvgenerico.dto.EditarFormaPagamentoRequest;
 import com.pdvgenerico.dto.VendaRequest;
+import com.pdvgenerico.dto.VendaRetroativaRequest;
 import com.pdvgenerico.exception.BusinessException;
 import com.pdvgenerico.exception.ResourceNotFoundException;
 import com.pdvgenerico.model.*;
@@ -67,16 +68,43 @@ public class VendaService {
 
     @Transactional
     public Venda registrarVenda(VendaRequest request, Usuario usuarioLogado) {
+        // grava sempre em UTC "cru", independente do fuso da máquina/servidor que roda o
+        // backend — o frontend converte isso para o fuso de Brasília na hora de exibir.
+        // Se usássemos LocalDateTime.now() puro, o valor mudaria de significado conforme
+        // o fuso do host (ex: máquina local em Brasília vs. servidor em UTC no Render).
+        return registrar(request, usuarioLogado, LocalDateTime.now(ZoneOffset.UTC), true);
+    }
+
+    /**
+     * Registra uma venda que já aconteceu mas não foi lançada na hora (ex.: feita
+     * depois que o caixa foi fechado). Só ADMIN (garantido no controller). Faz tudo
+     * que uma venda normal faz — baixa de estoque, pagamentos, desconto — mas grava a
+     * data/hora informada e atribui a venda ao vendedor escolhido (ou ao próprio ADMIN).
+     * Não dispara notificação push, já que não é uma venda acontecendo agora.
+     */
+    @Transactional
+    public Venda registrarVendaRetroativa(VendaRetroativaRequest request, Usuario adminLogado) {
+        // pequena tolerância para diferença de relógio entre o navegador e o servidor
+        if (request.dataHora().isAfter(LocalDateTime.now(ZoneOffset.UTC).plusMinutes(5))) {
+            throw new BusinessException("A data e hora da venda não pode estar no futuro.");
+        }
+
+        Usuario vendedor = adminLogado;
+        if (request.usuarioId() != null) {
+            vendedor = usuarioRepository.findById(request.usuarioId())
+                    .orElseThrow(() -> new BusinessException("Vendedor não encontrado."));
+        }
+
+        return registrar(request.paraVendaRequest(), vendedor, request.dataHora(), false);
+    }
+
+    private Venda registrar(VendaRequest request, Usuario usuarioLogado, LocalDateTime dataHora, boolean notificar) {
         List<ItemVenda> itens = new ArrayList<>();
         BigDecimal subtotal = BigDecimal.ZERO;
 
         Venda venda = Venda.builder()
                 .usuario(usuarioLogado)
-                // grava sempre em UTC "cru", independente do fuso da máquina/servidor que roda o
-                // backend — o frontend converte isso para o fuso de Brasília na hora de exibir.
-                // Se usássemos LocalDateTime.now() puro, o valor mudaria de significado conforme
-                // o fuso do host (ex: máquina local em Brasília vs. servidor em UTC no Render).
-                .dataHora(LocalDateTime.now(ZoneOffset.UTC))
+                .dataHora(dataHora)
                 .formaPagamento(request.formaPagamento() == null ? FormaPagamento.MULTIPLO : request.formaPagamento())
                 .total(BigDecimal.ZERO)
                 .build();
@@ -169,12 +197,14 @@ public class VendaService {
 
         Venda vendaSalva = vendaRepository.save(venda);
 
-        notificacaoService.notificarAdmins(
-                "💰 Nova venda · " + formatarReais(totalVenda),
-                "👤 " + usuarioLogado.getNome() + " · " + descreverPagamentos(pagamentos) + "\n🛍️ " + resumirItens(itens),
-                "/vendas",
-                null // notifica todo ADMIN, inclusive quem fez a acao
-        );
+        if (notificar) {
+            notificacaoService.notificarAdmins(
+                    "💰 Nova venda · " + formatarReais(totalVenda),
+                    "👤 " + usuarioLogado.getNome() + " · " + descreverPagamentos(pagamentos) + "\n🛍️ " + resumirItens(itens),
+                    "/vendas",
+                    null // notifica todo ADMIN, inclusive quem fez a acao
+            );
+        }
 
         return vendaSalva;
     }
