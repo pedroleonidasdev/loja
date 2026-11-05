@@ -104,6 +104,8 @@ def imprimir_etiquetas(
         largura_mm: float = None,
         altura_mm: float = None,
         espacamento_mm: float = None,  # aceito por compatibilidade; a Elgin detecta o gap sozinha
+        colunas: int = None,           # etiquetas lado a lado (bobina dupla = 2); None = ELGIN_COLUNAS
+        gap_colunas_mm: float = None,  # espaço horizontal entre colunas; None = ELGIN_GAP_COLUNAS_MM
 ) -> int:
     """Monta e envia o lote de etiquetas para a Elgin. Retorna a quantidade impressa.
     Lança EtiquetaError com uma mensagem segura para mostrar ao usuário."""
@@ -111,10 +113,10 @@ def imprimir_etiquetas(
     altura_mm = altura_mm if altura_mm is not None else DEFAULT_LABEL_HEIGHT_MM
 
     _validar_dimensoes(largura_mm, altura_mm)
-    return _imprimir_etiquetas_zpl(etiquetas, largura_mm, altura_mm)
+    return _imprimir_etiquetas_zpl(etiquetas, largura_mm, altura_mm, colunas, gap_colunas_mm)
 
 
-def _imprimir_etiquetas_zpl(etiquetas: list, largura_mm: float, altura_mm: float) -> int:
+def _imprimir_etiquetas_zpl(etiquetas: list, largura_mm: float, altura_mm: float, colunas=None, gap_colunas_mm=None) -> int:
     """Caminho da Elgin L42 Pro Full: gera ZPL (sem rasterizar) e envia por CUPS raw ou TCP 9100.
     O espaçamento entre etiquetas não é usado: a própria impressora detecta o gap."""
     import elgin_l42
@@ -122,7 +124,7 @@ def _imprimir_etiquetas_zpl(etiquetas: list, largura_mm: float, altura_mm: float
     if len(etiquetas) > MAX_ETIQUETAS_POR_LOTE:
         raise EtiquetaError(f"O lote aceita no máximo {MAX_ETIQUETAS_POR_LOTE} etiquetas por requisição")
     try:
-        dados = elgin_l42.montar_zpl(etiquetas, largura_mm, altura_mm)
+        dados = elgin_l42.montar_zpl(etiquetas, largura_mm, altura_mm, colunas, gap_colunas_mm)
         if DRY_RUN:
             with open(DRY_RUN_OUTPUT, "wb") as f:
                 f.write(dados)

@@ -45,6 +45,8 @@ def main() -> None:
             largura_mm=payload.get("largura"),
             altura_mm=payload.get("altura"),
             espacamento_mm=payload.get("espacamento"),
+            colunas=payload.get("colunas"),
+            gap_colunas_mm=payload.get("espacamentoColunas"),
         )
     except EtiquetaError as e:
         erro(str(e))

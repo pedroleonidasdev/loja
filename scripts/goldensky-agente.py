@@ -18,9 +18,11 @@ Uso:
 
 Endpoints:
   POST /imprimir-etiquetas   body: {"etiquetas": [{"nome","precoVenda","codigoBarras"}],
-                                     "largura": 60, "altura": 30, "espacamento": 4}
-                              largura/altura/espacamento em mm são opcionais — se
-                              omitidos, usa os padrões calibrados (60x30mm, 4mm).
+                                     "largura": 40, "altura": 25, "colunas": 2,
+                                     "espacamentoColunas": 3}
+                              largura/altura = UMA etiqueta, em mm. colunas = etiquetas
+                              lado a lado na bobina (dupla = 2); opcionais — se omitidos,
+                              usa ELGIN_COLUNAS / ELGIN_GAP_COLUNAS_MM do serviço.
   POST /imprimir-cupom        body: dados da venda (id, usuarioNome, dataHora,
                               itens, subtotal, desconto, total, pagamentos) —
                               é o mesmo formato que o frontend do PDV envia ao
@@ -39,6 +41,7 @@ import os
 import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+import elgin_l42
 from goldensky_core import (
     CupomError, EtiquetaError, LARGURA_MAX_MM, imprimir_cupom, imprimir_etiquetas,
 )
@@ -88,6 +91,8 @@ class Handler(BaseHTTPRequestHandler):
                 "impressora": "Elgin L42 Pro Full",
                 "larguraMaxMm": LARGURA_MAX_MM,
                 "suportaQuantidade": True,  # ZPL repete via ^PQ
+                "colunasPadrao": elgin_l42.COLUNAS,  # bobina dupla = 2 (ELGIN_COLUNAS)
+                "espacamentoColunasMm": elgin_l42.GAP_COLUNAS_MM,
                 # a Goldensky fica só com o cupom não fiscal
                 "impressoraCupom": "Goldensky 80mm",
             })
@@ -125,6 +130,8 @@ class Handler(BaseHTTPRequestHandler):
             largura_mm = _numero_opcional("largura")
             altura_mm = _numero_opcional("altura")
             espacamento_mm = _numero_opcional("espacamento")
+            colunas = _numero_opcional("colunas")
+            gap_colunas_mm = _numero_opcional("espacamentoColunas")
         except ValueError as campo:
             self._responder_json(400, {"mensagem": f"Valor inválido para '{campo}'"})
             return
@@ -135,6 +142,8 @@ class Handler(BaseHTTPRequestHandler):
                 largura_mm=largura_mm,
                 altura_mm=altura_mm,
                 espacamento_mm=espacamento_mm,
+                colunas=int(colunas) if colunas is not None else None,
+                gap_colunas_mm=gap_colunas_mm,
             )
         except EtiquetaError as e:
             self._responder_json(422, {"mensagem": str(e)})

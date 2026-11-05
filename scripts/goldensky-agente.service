@@ -17,6 +17,12 @@ Environment=ELGIN_CUPS_QUEUE=Elgin-L42
 #Environment=ELGIN_HOST=10.50.1.175
 # (10.50.1.175 = IP que a Elgin da loja recebeu por DHCP no relatório de configuração. Como é DHCP, o IP
 #  pode mudar: reserve esse IP no roteador ou configure um IP fixo na impressora antes de usar tcp.)
+# Bobina DUPLA (2 etiquetas lado a lado, ex.: 2 x 40x25mm): 2 colunas, gap entre elas em mm.
+# Meça o espaço entre as duas colunas na bobina e ajuste GAP (normalmente 2 a 3 mm).
+Environment=ELGIN_COLUNAS=2
+Environment=ELGIN_GAP_COLUNAS_MM=3
+# Se a coluna da esquerda sair cortada / tudo deslocado, ajuste (mm, pode ser 1, 2...):
+#Environment=ELGIN_OFFSET_X_MM=0
 # Método de impressão: por padrão vale o que está gravado na impressora (TRANSF.TERMICA). Para forçar:
 #Environment=ELGIN_METODO=transferencia
 Restart=on-failure

@@ -24,6 +24,10 @@ Configuração por variáveis de ambiente:
                      ou "direta" (^MTD, sem ribbon). Se sair em branco, confira este ajuste.
   ELGIN_VELOCIDADE   1-8 (polegadas/s, padrão 4)
   ELGIN_DENSIDADE    0-30 (escurecimento, padrão 20)
+  ELGIN_COLUNAS      etiquetas lado a lado na bobina (padrão 1). Bobina DUPLA = 2.
+  ELGIN_GAP_COLUNAS_MM  espaço horizontal entre uma coluna e outra, em mm (padrão 3)
+  ELGIN_OFFSET_X_MM  desloca tudo para a direita (mm, padrão 0) — ajuste fino se a
+                     coluna da esquerda sair cortada ou a da direita invadir a borda
 """
 
 import os
@@ -44,6 +48,9 @@ MIDIA = os.environ.get("ELGIN_MIDIA", "gap").lower()
 METODO = os.environ.get("ELGIN_METODO", "auto").lower()
 VELOCIDADE = int(os.environ.get("ELGIN_VELOCIDADE", "4"))
 DENSIDADE = int(os.environ.get("ELGIN_DENSIDADE", "20"))
+COLUNAS = int(os.environ.get("ELGIN_COLUNAS", "1"))
+GAP_COLUNAS_MM = float(os.environ.get("ELGIN_GAP_COLUNAS_MM", "3"))
+OFFSET_X_MM = float(os.environ.get("ELGIN_OFFSET_X_MM", "0"))
 
 LARGURA_MAX_MM = 108  # largura máxima de impressão da L42 Pro
 MAX_NOME_CHARS = 60
@@ -100,7 +107,9 @@ def _modulos_code128(codigo: str) -> int:
     return 11 * (1 + simbolos + 1) + 13  # start + dados + check + stop(13)
 
 
-def _montar_etiqueta(nome: str, preco: str, codigo: str, qtd: int, largura_mm: float, altura_mm: float) -> str:
+def _corpo_etiqueta(nome: str, preco: str, codigo: str, largura_mm: float, altura_mm: float, x0: int = 0) -> list:
+    """Campos ZPL de UMA etiqueta, deslocada x0 dots para a direita (coluna da bobina).
+    Não inclui ^XA/^XZ: quem monta a linha da bobina junta as colunas."""
     W, H = _dots(largura_mm), _dots(altura_mm)
     margem = max(6, round(W * 0.02))
     util = W - 2 * margem
@@ -120,25 +129,49 @@ def _montar_etiqueta(nome: str, preco: str, codigo: str, qtd: int, largura_mm: f
     y_preco, fonte_preco = round(H * 0.34), max(24, round(H * 0.17))
     y_barras, altura_barras = round(H * 0.56), max(24, round(H * 0.22))
 
-    return "\n".join([
-        "^XA",
-        f"^FO{margem},{y_nome}^A0N,{fonte_nome},{fonte_nome}^FB{util},2,0,C,0^FH^FD{_escapar_zpl(nome)}^FS",
-        f"^FO{margem},{y_preco}^A0N,{fonte_preco},{fonte_preco}^FB{util},1,0,C,0^FH^FD{_escapar_zpl(preco)}^FS",
+    return [
+        f"^FO{x0 + margem},{y_nome}^A0N,{fonte_nome},{fonte_nome}^FB{util},2,0,C,0^FH^FD{_escapar_zpl(nome)}^FS",
+        f"^FO{x0 + margem},{y_preco}^A0N,{fonte_preco},{fonte_preco}^FB{util},1,0,C,0^FH^FD{_escapar_zpl(preco)}^FS",
         f"^BY{bw},3,{altura_barras}",
-        f"^FO{barcode_x},{y_barras}^BCN,{altura_barras},Y,N,N,A^FH^FD{_escapar_zpl(codigo)}^FS",
-        f"^PQ{qtd},0,1,N",
-        "^XZ",
-    ])
+        f"^FO{x0 + barcode_x},{y_barras}^BCN,{altura_barras},Y,N,N,A^FH^FD{_escapar_zpl(codigo)}^FS",
+    ]
 
 
-def montar_zpl(etiquetas: list, largura_mm: float, altura_mm: float) -> bytes:
-    """Monta o ZPL do lote. Cada item: {"nome","precoVenda","codigoBarras","quantidade"(opcional)}."""
+def montar_zpl(
+    etiquetas: list,
+    largura_mm: float,
+    altura_mm: float,
+    colunas: int = None,
+    gap_colunas_mm: float = None,
+) -> bytes:
+    """Monta o ZPL do lote. Cada item: {"nome","precoVenda","codigoBarras","quantidade"(opcional)}.
+
+    largura_mm/altura_mm = tamanho de UMA etiqueta. Em bobina dupla (colunas=2) a impressora
+    imprime uma LINHA por vez, com todas as colunas — por isso ^PW é a largura da linha inteira
+    (colunas x largura + gaps) e cada etiqueta é desenhada num deslocamento X diferente.
+    As etiquetas são empacotadas em sequência (inclusive entre produtos diferentes), então
+    não sobram colunas vazias no meio do lote; só a última linha pode ficar com vazio.
+    """
     if not etiquetas:
         raise ElginError("Nenhuma etiqueta informada")
-    if largura_mm > LARGURA_MAX_MM:
-        raise ElginError(f"A L42 Pro imprime no máximo {LARGURA_MAX_MM}mm de largura")
+
+    colunas = COLUNAS if colunas is None else int(colunas)
+    gap_mm = GAP_COLUNAS_MM if gap_colunas_mm is None else float(gap_colunas_mm)
+    if not (1 <= colunas <= 4):
+        raise ElginError("Colunas deve estar entre 1 e 4")
+    if gap_mm < 0 or gap_mm > 20:
+        raise ElginError("O espaço entre colunas deve estar entre 0 e 20 mm")
+
+    largura_linha_mm = colunas * largura_mm + (colunas - 1) * gap_mm + OFFSET_X_MM
+    if largura_linha_mm > LARGURA_MAX_MM:
+        raise ElginError(
+            f"{colunas} coluna(s) de {largura_mm:g}mm + espaços dá {largura_linha_mm:g}mm, "
+            f"e a L42 Pro imprime no máximo {LARGURA_MAX_MM}mm de largura"
+        )
 
     W, H = _dots(largura_mm), _dots(altura_mm)
+    passo_x = W + _dots(gap_mm)          # distância de uma coluna à próxima
+    PW = colunas * W + (colunas - 1) * _dots(gap_mm) + _dots(OFFSET_X_MM)
     tipo_midia = {"gap": "^MNY", "marca": "^MNM", "continua": "^MNN"}.get(MIDIA, "^MNY")
 
     # cabeçalho aplicado uma vez por lote
@@ -146,15 +179,17 @@ def montar_zpl(etiquetas: list, largura_mm: float, altura_mm: float) -> bytes:
         f"~SD{max(0, min(30, DENSIDADE))}",  # comando imediato: fica fora do bloco ^XA..^XZ
         "^XA",
         "^CI28" if ACENTOS != "ascii" else "^CI0",  # UTF-8
-        f"^PW{W}",
+        f"^PW{PW}",
         f"^LL{H}",
-        "^LH0,0",
+        f"^LH{_dots(OFFSET_X_MM) if OFFSET_X_MM else 0},0",
         tipo_midia,
         *( [{"transferencia": "^MTT", "direta": "^MTD"}[METODO]] if METODO in ("transferencia", "direta") else [] ),
         f"^PR{max(1, min(8, VELOCIDADE))}",
         "^XZ",
     ]
 
+    # 1) expande cada produto na quantidade pedida
+    fila = []
     for i, item in enumerate(etiquetas):
         nome = str(item.get("nome", "")).strip()[:MAX_NOME_CHARS]
         codigo = str(item.get("codigoBarras", "")).strip()
@@ -166,8 +201,23 @@ def montar_zpl(etiquetas: list, largura_mm: float, altura_mm: float) -> bytes:
             raise ElginError(f"Etiqueta {i + 1}: quantidade inválida")
         if not (1 <= qtd <= 100):
             raise ElginError(f"Etiqueta {i + 1}: quantidade deve estar entre 1 e 100")
+        fila.extend([(nome, formatar_preco(item.get("precoVenda")), codigo)] * qtd)
 
-        partes.append(_montar_etiqueta(nome, formatar_preco(item.get("precoVenda")), codigo, qtd, largura_mm, altura_mm))
+    # 2) agrupa em linhas da bobina (N etiquetas lado a lado)
+    linhas = [tuple(fila[k:k + colunas]) for k in range(0, len(fila), colunas)]
+
+    # 3) linhas idênticas e consecutivas viram um único ^PQ (ex.: 10 do mesmo produto, 2 colunas = 5 linhas)
+    k = 0
+    while k < len(linhas):
+        n = 1
+        while k + n < len(linhas) and linhas[k + n] == linhas[k]:
+            n += 1
+        corpo = ["^XA"]
+        for col, (nome, preco, codigo) in enumerate(linhas[k]):
+            corpo += _corpo_etiqueta(nome, preco, codigo, largura_mm, altura_mm, x0=col * passo_x)
+        corpo += [f"^PQ{n},0,1,N", "^XZ"]
+        partes.append("\n".join(corpo))
+        k += n
 
     return ("\n".join(partes) + "\n").encode("ascii")  # tudo escapado em _XX, então é ASCII puro
 
