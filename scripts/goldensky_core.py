@@ -1,29 +1,19 @@
 """
-Lógica compartilhada de impressão de etiquetas para a impressora térmica
-Goldensky 80mm. Não faz leitura de stdin nem HTTP — isso fica por conta de
-quem importa este módulo (goldensky-etiquetas.py para uso manual via CLI,
-goldensky-agente.py para o serviço HTTP local que o frontend chama).
+Lógica compartilhada de impressão da loja. Não faz leitura de stdin nem HTTP — isso
+fica por conta de quem importa este módulo (goldensky-etiquetas.py para uso manual via
+CLI, goldensky-agente.py para o serviço HTTP local que o frontend chama).
 
-Para cada etiqueta:
-  1. Monta uma página de PDF no tamanho da etiqueta (nome + preço + código de barras) com reportlab.
-  2. Rasteriza essa página em PNG a 203 dpi com pdftoppm (poppler-utils).
-  3. Converte o raster em comandos RAW ESC/POS (GS v 0) para a Goldensky.
-
-O resultado é enviado para a fila CUPS "Goldensky-80" via `lp -o raw`.
+Divisão das impressoras:
+  - Goldensky 80mm  -> SOMENTE cupom não fiscal (ESC/POS, fila CUPS "Goldensky-80")
+  - Elgin L42 Pro Full -> SOMENTE etiquetas de preço (ZPL II, veja elgin_l42.py)
 
 Dependências (Linux Mint / Ubuntu):
-  sudo apt install -y cups-client python3 python3-pil python3-reportlab poppler-utils
+  sudo apt install -y cups-client python3
 """
 
-import io
 import os
 import subprocess
 import tempfile
-
-from PIL import Image
-from reportlab.graphics.barcode import code128
-from reportlab.lib.units import mm
-from reportlab.pdfgen import canvas
 
 
 class EtiquetaError(Exception):
@@ -34,30 +24,16 @@ class CupomError(Exception):
     """Erro esperado ao montar/enviar o cupom não fiscal — mensagem é segura para mostrar ao usuário."""
 
 
-# --- Configuração física da etiqueta -----------------------------------------
-# Valores padrão — usados quando o pedido de impressão não informa dimensão
-# própria. O lote original usado neste projeto é de etiquetas adesivas
-# pré-cortadas de 60 x 30mm. O frontend permite ajustar isso por lote de
-# etiquetas diferente, sem precisar mexer no código.
+# --- Configuração das etiquetas (Elgin L42 Pro Full, ZPL) ------------------
+# Valores padrão — usados quando o pedido de impressão não informa dimensão própria.
 DEFAULT_LABEL_WIDTH_MM = 60
 DEFAULT_LABEL_HEIGHT_MM = 30
-DEFAULT_GAP_MM = 4  # espaçamento entre uma etiqueta e a próxima, medido fisicamente
 
-DPI = 203  # resolução nativa da cabeça de impressão da Goldensky 80mm
-
-# limites de sanidade — a cabeça de impressão da Goldensky-80 imprime no
-# máximo ~80mm de largura; abaixo disso é só para evitar valor absurdo digitado
-# Divisão das impressoras da loja:
-#   - Goldensky 80mm (fila CUPS GOLDENSKY_CUPS_QUEUE) -> SOMENTE cupom não fiscal
-#   - Elgin/Bematech L42 Pro Full (ZPL II, veja elgin_l42.py) -> SOMENTE etiquetas de preço
-# O padrão agora é "zpl" (Elgin). "escpos" (etiquetas na Goldensky) é o modo antigo e
-# só é usado se alguém definir ETIQUETA_DRIVER=escpos de propósito.
-DRIVER = os.environ.get("ETIQUETA_DRIVER", "zpl").lower()
-
-LARGURA_MIN_MM, LARGURA_MAX_MM = 20, (108 if DRIVER == "zpl" else 80)
+# A Elgin imprime no máximo 108mm de largura.
+LARGURA_MIN_MM, LARGURA_MAX_MM = 20, 108
 ALTURA_MIN_MM, ALTURA_MAX_MM = 10, 150
-ESPACAMENTO_MIN_MM, ESPACAMENTO_MAX_MM = 0, 30
 
+# Fila CUPS da Goldensky (usada só para o cupom não fiscal).
 CUPS_QUEUE = os.environ.get("GOLDENSKY_CUPS_QUEUE", "Goldensky-80")
 DRY_RUN = os.environ.get("GOLDENSKY_DRY_RUN") == "1"
 DRY_RUN_OUTPUT = os.environ.get("GOLDENSKY_DRY_RUN_OUTPUT", "/tmp/goldensky-etiquetas-teste.bin")
@@ -83,7 +59,7 @@ _ESC_NEGRITO_OFF = "\x1b\x45\x00"
 _ESC_AVANCAR_E_CORTAR = "\x1b\x64\x04" + "\x1d\x56\x01"  # avança 4 linhas, corte parcial
 
 
-def _validar_dimensoes(largura_mm: float, altura_mm: float, espacamento_mm: float) -> None:
+def _validar_dimensoes(largura_mm: float, altura_mm: float) -> None:
     if not (LARGURA_MIN_MM <= largura_mm <= LARGURA_MAX_MM):
         raise EtiquetaError(
             f"Largura da etiqueta deve estar entre {LARGURA_MIN_MM}mm e {LARGURA_MAX_MM}mm "
@@ -91,8 +67,6 @@ def _validar_dimensoes(largura_mm: float, altura_mm: float, espacamento_mm: floa
         )
     if not (ALTURA_MIN_MM <= altura_mm <= ALTURA_MAX_MM):
         raise EtiquetaError(f"Altura da etiqueta deve estar entre {ALTURA_MIN_MM}mm e {ALTURA_MAX_MM}mm")
-    if not (ESPACAMENTO_MIN_MM <= espacamento_mm <= ESPACAMENTO_MAX_MM):
-        raise EtiquetaError(f"Espaçamento entre etiquetas deve estar entre {ESPACAMENTO_MIN_MM}mm e {ESPACAMENTO_MAX_MM}mm")
 
 
 def formatar_preco(valor) -> str:
@@ -104,156 +78,6 @@ def formatar_preco(valor) -> str:
     # 12,345.67 -> 12.345,67 (formato brasileiro)
     texto = texto.replace(",", "X").replace(".", ",").replace("X", ".")
     return f"R$ {texto}"
-
-
-def montar_pdf_etiqueta(
-        nome: str,
-        preco_formatado: str,
-        codigo_barras: str,
-        largura_mm: float = DEFAULT_LABEL_WIDTH_MM,
-        altura_mm: float = DEFAULT_LABEL_HEIGHT_MM,
-) -> bytes:
-    """Gera um PDF de uma página no tamanho exato da etiqueta.
-    O layout (posições, fontes, código de barras) foi calibrado para 60x30mm,
-    compacto e com o código de barras fino, para caber bem na bobina de
-    etiquetas de preço; para outras dimensões, tudo escala proporcionalmente
-    a partir desse ponto."""
-    buffer = io.BytesIO()
-    largura = largura_mm * mm
-    altura = altura_mm * mm
-    c = canvas.Canvas(buffer, pagesize=(largura, altura))
-
-    escala_v = altura_mm / DEFAULT_LABEL_HEIGHT_MM
-    escala_h = largura_mm / DEFAULT_LABEL_WIDTH_MM
-
-    fonte_nome = max(6, round(8 * escala_v))
-    fonte_preco = max(7, round(9 * escala_v))
-    fonte_codigo = max(5, round(6 * escala_v))
-
-    # Nome do produto — quebra em até 2 linhas se for muito comprido
-    c.setFont("Helvetica-Bold", fonte_nome)
-    max_chars = max(10, round(30 * escala_h))
-    linha1, linha2 = nome[:max_chars], nome[max_chars:max_chars * 2]
-    c.drawCentredString(largura / 2, altura - 4.2 * mm * escala_v, linha1)
-    if linha2:
-        c.drawCentredString(largura / 2, altura - 7.4 * mm * escala_v, linha2)
-
-    # Preço
-    c.setFont("Helvetica-Bold", fonte_preco)
-    c.drawCentredString(largura / 2, altura - 11 * mm * escala_v, preco_formatado)
-
-    # Código de barras (Code128) fino e compacto — proporção parecida com
-    # etiquetas pequenas de barrinha de chocolate. Atenção: a impressora
-    # Goldensky-80 imprime a 203dpi (~0,125mm por ponto), então módulos abaixo
-    # de ~0,20mm ficam sujeitos a arredondamento de 1-2 pontos na rasterização;
-    # teste a leitura no leitor de código de barras da loja antes de imprimir
-    # um lote grande — se o scanner não ler bem, volte para 0.22mm.
-    barcode = code128.Code128(codigo_barras, barHeight=8 * mm * escala_v, barWidth=0.18 * mm * escala_h)
-    barcode_largura = barcode.width
-    barcode.drawOn(c, (largura - barcode_largura) / 2, 2 * mm * escala_v)
-
-    c.setFont("Helvetica", fonte_codigo)
-    c.drawCentredString(largura / 2, 0.6 * mm * escala_v, codigo_barras)
-
-    c.showPage()
-    c.save()
-    return buffer.getvalue()
-
-
-def rasterizar_pdf(pdf_bytes: bytes) -> Image.Image:
-    """Converte a página única do PDF em um bitmap 1-bit via pdftoppm (poppler-utils)."""
-    with tempfile.TemporaryDirectory() as tmp:
-        pdf_path = os.path.join(tmp, "etiqueta.pdf")
-        png_prefix = os.path.join(tmp, "etiqueta")
-        with open(pdf_path, "wb") as f:
-            f.write(pdf_bytes)
-
-        resultado = subprocess.run(
-            ["pdftoppm", "-png", "-r", str(DPI), pdf_path, png_prefix],
-            capture_output=True,
-        )
-        if resultado.returncode != 0:
-            raise EtiquetaError(
-                f"Falha ao rasterizar etiqueta (pdftoppm): {resultado.stderr.decode(errors='ignore')}"
-            )
-
-        png_path = f"{png_prefix}-1.png"
-        if not os.path.exists(png_path):
-            # em algumas versões o pdftoppm não usa o sufixo "-1" para página única
-            candidatos = [f for f in os.listdir(tmp) if f.endswith(".png")]
-            if not candidatos:
-                raise EtiquetaError("pdftoppm não gerou nenhuma imagem para a etiqueta")
-            png_path = os.path.join(tmp, candidatos[0])
-
-        imagem = Image.open(png_path).convert("L")
-        # limiar simples de preto/branco — nome, preço e código de barras são
-        # traços sólidos, então um threshold fixo funciona bem aqui
-        imagem = imagem.point(lambda p: 255 if p > 160 else 0, mode="1")
-        return imagem
-
-
-def imagem_para_escpos(imagem: Image.Image) -> bytes:
-    """Converte um bitmap 1-bit em comandos RAW ESC/POS (GS v 0 - raster bit image)."""
-    largura, altura = imagem.size
-    bytes_por_linha = (largura + 7) // 8
-
-    dados = bytearray()
-    pixels = imagem.load()
-    for y in range(altura):
-        linha = bytearray(bytes_por_linha)
-        for x in range(largura):
-            # 0 = preto no modo "1" do Pillow após o threshold acima
-            if pixels[x, y] == 0:
-                linha[x // 8] |= 0x80 >> (x % 8)
-        dados.extend(linha)
-
-    xl = bytes_por_linha & 0xFF
-    xh = (bytes_por_linha >> 8) & 0xFF
-    yl = altura & 0xFF
-    yh = (altura >> 8) & 0xFF
-
-    comando = bytearray()
-    comando += b"\x1d\x76\x30\x00"  # GS v 0 m=0 (modo normal)
-    comando += bytes([xl, xh, yl, yh])
-    comando += dados
-    return bytes(comando)
-
-
-def montar_stream_escpos(
-        etiquetas: list,
-        largura_mm: float = DEFAULT_LABEL_WIDTH_MM,
-        altura_mm: float = DEFAULT_LABEL_HEIGHT_MM,
-        espacamento_mm: float = DEFAULT_GAP_MM,
-) -> bytes:
-    if not etiquetas:
-        raise EtiquetaError("Nenhuma etiqueta informada")
-    if len(etiquetas) > MAX_ETIQUETAS_POR_LOTE:
-        raise EtiquetaError(f"O lote aceita no máximo {MAX_ETIQUETAS_POR_LOTE} etiquetas por requisição")
-
-    gap_dots = round(espacamento_mm * DPI / 25.4)
-
-    stream = bytearray()
-    stream += b"\x1b\x40"  # ESC @ — inicializa a impressora
-
-    for i, item in enumerate(etiquetas):
-        nome = str(item.get("nome", "")).strip()
-        codigo_barras = str(item.get("codigoBarras", "")).strip()
-        preco_formatado = formatar_preco(item.get("precoVenda"))
-
-        if not nome or not codigo_barras:
-            raise EtiquetaError(f"Etiqueta {i + 1}: nome e código de barras são obrigatórios")
-
-        pdf_bytes = montar_pdf_etiqueta(nome, preco_formatado, codigo_barras, largura_mm, altura_mm)
-        imagem = rasterizar_pdf(pdf_bytes)
-        stream += imagem_para_escpos(imagem)
-
-        # avanço de papel entre etiquetas (não aplica depois da última)
-        if i < len(etiquetas) - 1:
-            linhas_de_avanco = max(1, gap_dots // 24)
-            stream += bytes([0x1b, 0x64, linhas_de_avanco])  # ESC d n — feed n linhas
-
-    stream += bytes([0x1b, 0x64, 3])  # folga final antes do corte manual
-    return bytes(stream)
 
 
 def enviar_para_cups(dados: bytes) -> None:
@@ -279,28 +103,15 @@ def imprimir_etiquetas(
         etiquetas: list,
         largura_mm: float = None,
         altura_mm: float = None,
-        espacamento_mm: float = None,
+        espacamento_mm: float = None,  # aceito por compatibilidade; a Elgin detecta o gap sozinha
 ) -> int:
-    """Monta e envia o lote de etiquetas. Retorna a quantidade impressa.
+    """Monta e envia o lote de etiquetas para a Elgin. Retorna a quantidade impressa.
     Lança EtiquetaError com uma mensagem segura para mostrar ao usuário."""
     largura_mm = largura_mm if largura_mm is not None else DEFAULT_LABEL_WIDTH_MM
     altura_mm = altura_mm if altura_mm is not None else DEFAULT_LABEL_HEIGHT_MM
-    espacamento_mm = espacamento_mm if espacamento_mm is not None else DEFAULT_GAP_MM
 
-    _validar_dimensoes(largura_mm, altura_mm, espacamento_mm)
-
-    if DRIVER == "zpl":
-        return _imprimir_etiquetas_zpl(etiquetas, largura_mm, altura_mm)
-
-    dados = montar_stream_escpos(etiquetas, largura_mm, altura_mm, espacamento_mm)
-
-    if DRY_RUN:
-        with open(DRY_RUN_OUTPUT, "wb") as f:
-            f.write(dados)
-        return len(etiquetas)
-
-    enviar_para_cups(dados)
-    return len(etiquetas)
+    _validar_dimensoes(largura_mm, altura_mm)
+    return _imprimir_etiquetas_zpl(etiquetas, largura_mm, altura_mm)
 
 
 def _imprimir_etiquetas_zpl(etiquetas: list, largura_mm: float, altura_mm: float) -> int:

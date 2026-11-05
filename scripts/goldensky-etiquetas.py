@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Uso manual/teste do agente de etiquetas Goldensky, via linha de comando.
+Uso manual/teste das etiquetas de preço (Elgin L42, ZPL), via linha de comando.
 
 Lê um JSON pela stdin no formato:
   {"etiquetas": [{"nome": "...", "precoVenda": 12.5, "codigoBarras": "789..."}],
@@ -10,19 +10,19 @@ Lê um JSON pela stdin no formato:
 
 Modo de teste (sem impressora):
   GOLDENSKY_DRY_RUN=1 ./goldensky-etiquetas.py < scripts/exemplo-etiquetas.json
-  Gera /tmp/goldensky-etiquetas-teste.bin com os bytes RAW e não aciona o CUPS.
+  Gera /tmp/goldensky-etiquetas-teste.bin com o ZPL e não aciona o CUPS.
 
 Para o uso em produção (acionado pelo navegador do PDV), veja goldensky-agente.py,
 que expõe essa mesma lógica como um serviço HTTP local.
 
 Dependências (Linux Mint / Ubuntu):
-  sudo apt install -y cups-client python3 python3-pil python3-reportlab poppler-utils
+  sudo apt install -y cups-client python3
 """
 
 import json
 import sys
 
-from goldensky_core import EtiquetaError, imprimir_etiquetas, DRY_RUN, DRY_RUN_OUTPUT, CUPS_QUEUE, DRIVER
+from goldensky_core import EtiquetaError, imprimir_etiquetas, DRY_RUN, DRY_RUN_OUTPUT
 
 
 def erro(mensagem: str, codigo: int = 1) -> None:
@@ -53,7 +53,7 @@ def main() -> None:
     if DRY_RUN:
         sys.stdout.write(f"[dry-run] {quantidade} etiqueta(s) geradas em {DRY_RUN_OUTPUT}\n")
     else:
-        sys.stdout.write(f"{quantidade} etiqueta(s) enviada(s) para {'a Elgin L42 (ZPL)' if DRIVER == 'zpl' else CUPS_QUEUE}\n")
+        sys.stdout.write(f"{quantidade} etiqueta(s) enviada(s) para a Elgin L42 (ZPL)\n")
 
 
 if __name__ == "__main__":

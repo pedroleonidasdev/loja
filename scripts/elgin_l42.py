@@ -8,7 +8,7 @@ puro (nome, preço e Code128 desenhados pela própria impressora), o que fica
 mais nítido, mais rápido e deixa o código de barras sempre legível.
 
 Este módulo não depende de PIL/reportlab/poppler e não importa goldensky_core;
-quem decide usá-lo é o goldensky_core (variável ETIQUETA_DRIVER=zpl).
+quem usa é o goldensky_core.
 
 Configuração por variáveis de ambiente:
   ELGIN_TRANSPORTE   "cups" (padrão) ou "tcp"
@@ -19,6 +19,9 @@ Configuração por variáveis de ambiente:
                      — se saírem caracteres estranhos, troque para ascii
   ELGIN_MIDIA        "gap" (padrão, etiqueta com espaço entre elas),
                      "marca" (marca preta) ou "continua" (bobina sem corte)
+  ELGIN_METODO       "auto" (padrão: não envia ^MT, vale o método gravado na impressora —
+                     na nossa L42 é "TRANSF.TERMICA"), "transferencia" (^MTT, com ribbon)
+                     ou "direta" (^MTD, sem ribbon). Se sair em branco, confira este ajuste.
   ELGIN_VELOCIDADE   1-8 (polegadas/s, padrão 4)
   ELGIN_DENSIDADE    0-30 (escurecimento, padrão 20)
 """
@@ -38,6 +41,7 @@ HOST = os.environ.get("ELGIN_HOST", "")
 PORT = int(os.environ.get("ELGIN_PORT", "9100"))
 ACENTOS = os.environ.get("ELGIN_ACENTOS", "utf8").lower()
 MIDIA = os.environ.get("ELGIN_MIDIA", "gap").lower()
+METODO = os.environ.get("ELGIN_METODO", "auto").lower()
 VELOCIDADE = int(os.environ.get("ELGIN_VELOCIDADE", "4"))
 DENSIDADE = int(os.environ.get("ELGIN_DENSIDADE", "20"))
 
@@ -146,7 +150,7 @@ def montar_zpl(etiquetas: list, largura_mm: float, altura_mm: float) -> bytes:
         f"^LL{H}",
         "^LH0,0",
         tipo_midia,
-        "^MTD",  # térmica direta (etiqueta térmica); use ^MTT se usar ribbon
+        *( [{"transferencia": "^MTT", "direta": "^MTD"}[METODO]] if METODO in ("transferencia", "direta") else [] ),
         f"^PR{max(1, min(8, VELOCIDADE))}",
         "^XZ",
     ]

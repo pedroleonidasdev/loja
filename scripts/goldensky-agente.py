@@ -25,13 +25,13 @@ Endpoints:
                               itens, subtotal, desconto, total, pagamentos) —
                               é o mesmo formato que o frontend do PDV envia ao
                               fechar uma venda. Imprime o recibo não fiscal.
-  GET  /status                healthcheck + driver de etiquetas em uso (escpos/zpl)
+  GET  /status                healthcheck (etiquetas: Elgin ZPL; cupom: Goldensky)
 
 Impressoras: cupom -> Goldensky 80mm (fila CUPS Goldensky-80); etiquetas -> Elgin L42
-(ETIQUETA_DRIVER=zpl, o padrão). Veja o goldensky-agente.service.
+(ZPL). Veja o goldensky-agente.service.
 
 Dependências (Linux Mint / Ubuntu):
-  sudo apt install -y cups-client python3 python3-pil python3-reportlab poppler-utils
+  sudo apt install -y cups-client python3
 """
 
 import json
@@ -40,7 +40,7 @@ import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from goldensky_core import (
-    CupomError, EtiquetaError, DRIVER, LARGURA_MAX_MM, imprimir_cupom, imprimir_etiquetas,
+    CupomError, EtiquetaError, LARGURA_MAX_MM, imprimir_cupom, imprimir_etiquetas,
 )
 
 HOST = os.environ.get("GOLDENSKY_AGENTE_HOST", "127.0.0.1")
@@ -82,13 +82,12 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path == "/status":
             # o frontend usa isso para adaptar a tela de etiquetas à impressora em uso
-            zpl = DRIVER == "zpl"
             self._responder_json(200, {
                 "status": "ok",
-                "driver": "zpl" if zpl else "escpos",
-                "impressora": "Elgin L42 Pro Full" if zpl else "Goldensky 80mm",
+                "driver": "zpl",
+                "impressora": "Elgin L42 Pro Full",
                 "larguraMaxMm": LARGURA_MAX_MM,
-                "suportaQuantidade": zpl,  # ZPL repete via ^PQ; ESC/POS o frontend repete os itens
+                "suportaQuantidade": True,  # ZPL repete via ^PQ
                 # a Goldensky fica só com o cupom não fiscal
                 "impressoraCupom": "Goldensky 80mm",
             })
@@ -145,8 +144,7 @@ class Handler(BaseHTTPRequestHandler):
             self._responder_json(500, {"mensagem": "Erro inesperado ao acionar a impressora"})
             return
 
-        destino = "a Elgin L42" if DRIVER == "zpl" else "a Goldensky"
-        self._responder_json(200, {"mensagem": f"{quantidade} etiqueta(s) enviada(s) para {destino}."})
+        self._responder_json(200, {"mensagem": f"{quantidade} etiqueta(s) enviada(s) para a Elgin L42."})
 
     def _tratar_imprimir_cupom(self):
         try:

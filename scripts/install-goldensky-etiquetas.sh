@@ -25,14 +25,11 @@ DESTINO_BIN="/usr/local/bin"
 echo "Verificando dependências..."
 FALTANDO=()
 command -v python3 >/dev/null 2>&1 || FALTANDO+=("python3")
-command -v pdftoppm >/dev/null 2>&1 || FALTANDO+=("poppler-utils")
 command -v lp >/dev/null 2>&1 || FALTANDO+=("cups-client")
-python3 -c "import PIL" >/dev/null 2>&1 || FALTANDO+=("python3-pil")
-python3 -c "import reportlab" >/dev/null 2>&1 || FALTANDO+=("python3-reportlab")
 
 if [ ${#FALTANDO[@]} -gt 0 ]; then
   echo "Faltando: ${FALTANDO[*]}"
-  echo "Instale com: sudo apt update && sudo apt install -y cups-client python3 python3-pil python3-reportlab poppler-utils"
+  echo "Instale com: sudo apt update && sudo apt install -y cups-client python3"
   exit 1
 fi
 
