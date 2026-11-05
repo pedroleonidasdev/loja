@@ -194,6 +194,7 @@ def montar_stream_cupom(venda: dict) -> bytes:
     linhas = []
 
     linhas.append(NOME_LOJA.upper().center(largura))
+    linhas.append("CNPJ: 50.622.630/0001-76".center(largura))
     if ENDERECO_LOJA:
         linhas.append(ENDERECO_LOJA.center(largura))
     if TELEFONE_LOJA:
