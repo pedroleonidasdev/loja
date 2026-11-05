@@ -140,7 +140,8 @@ def _corpo_etiqueta(nome: str, preco: str, codigo: str, largura_mm: float, altur
     bloco = linhas_nome * fonte_nome + gap_nome_preco + fonte_preco
     area_topo = round(H * 0.04)
     area_h = y_barras - round(H * 0.04) - area_topo
-    y_nome = area_topo + max(0, (area_h - bloco) // 2)
+    deslocamento = round(H * 0.04)
+    y_nome = area_topo + max(0, (area_h - bloco) // 2) + deslocamento
     y_preco = y_nome + linhas_nome * fonte_nome + gap_nome_preco
 
     return [
