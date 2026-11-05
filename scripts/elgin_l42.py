@@ -51,6 +51,9 @@ DENSIDADE = int(os.environ.get("ELGIN_DENSIDADE", "20"))
 COLUNAS = int(os.environ.get("ELGIN_COLUNAS", "1"))
 GAP_COLUNAS_MM = float(os.environ.get("ELGIN_GAP_COLUNAS_MM", "3"))
 OFFSET_X_MM = float(os.environ.get("ELGIN_OFFSET_X_MM", "0"))
+# bobina dupla: se sobrar coluna vazia na última linha, repete a última etiqueta para preenchê-la
+# (a etiqueta da coluna vazia seria desperdiçada de qualquer jeito). "0" desliga.
+PREENCHER_LINHA = os.environ.get("ELGIN_PREENCHER_LINHA", "1") != "0"
 
 LARGURA_MAX_MM = 108  # largura máxima de impressão da L42 Pro
 MAX_NOME_CHARS = 60
@@ -125,12 +128,23 @@ def _corpo_etiqueta(nome: str, preco: str, codigo: str, largura_mm: float, altur
         )
     barcode_x = max(margem, (W - barcode_w) // 2)
 
-    y_nome, fonte_nome = round(H * 0.04), max(18, round(H * 0.11))
-    y_preco, fonte_preco = round(H * 0.34), max(24, round(H * 0.17))
+    fonte_nome = max(18, round(H * 0.11))
+    fonte_preco = max(24, round(H * 0.17))
     y_barras, altura_barras = round(H * 0.56), max(24, round(H * 0.22))
 
+    # nome + preço formam um bloco único, colado e centralizado na área acima do código
+    # de barras (nome de 1 linha não fica "boiando" lá em cima longe do preço).
+    # ESPELHA lib/etiqueta-layout.ts do frontend — mude os dois juntos.
+    linhas_nome = 2 if len(nome) * fonte_nome * 0.62 > util else 1
+    gap_nome_preco = max(4, round(H * 0.03))
+    bloco = linhas_nome * fonte_nome + gap_nome_preco + fonte_preco
+    area_topo = round(H * 0.04)
+    area_h = y_barras - round(H * 0.04) - area_topo
+    y_nome = area_topo + max(0, (area_h - bloco) // 2)
+    y_preco = y_nome + linhas_nome * fonte_nome + gap_nome_preco
+
     return [
-        f"^FO{x0 + margem},{y_nome}^A0N,{fonte_nome},{fonte_nome}^FB{util},2,0,C,0^FH^FD{_escapar_zpl(nome)}^FS",
+        f"^FO{x0 + margem},{y_nome}^A0N,{fonte_nome},{fonte_nome}^FB{util},{linhas_nome},0,C,0^FH^FD{_escapar_zpl(nome)}^FS",
         f"^FO{x0 + margem},{y_preco}^A0N,{fonte_preco},{fonte_preco}^FB{util},1,0,C,0^FH^FD{_escapar_zpl(preco)}^FS",
         f"^BY{bw},3,{altura_barras}",
         f"^FO{x0 + barcode_x},{y_barras}^BCN,{altura_barras},Y,N,N,A^FH^FD{_escapar_zpl(codigo)}^FS",
@@ -202,6 +216,9 @@ def montar_zpl(
         if not (1 <= qtd <= 100):
             raise ElginError(f"Etiqueta {i + 1}: quantidade deve estar entre 1 e 100")
         fila.extend([(nome, formatar_preco(item.get("precoVenda")), codigo)] * qtd)
+
+    if PREENCHER_LINHA and colunas > 1 and fila and len(fila) % colunas:
+        fila.extend([fila[-1]] * (colunas - len(fila) % colunas))
 
     # 2) agrupa em linhas da bobina (N etiquetas lado a lado)
     linhas = [tuple(fila[k:k + colunas]) for k in range(0, len(fila), colunas)]
