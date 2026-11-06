@@ -53,7 +53,6 @@ GAP_COLUNAS_MM = float(os.environ.get("ELGIN_GAP_COLUNAS_MM", "3"))
 OFFSET_X_MM = float(os.environ.get("ELGIN_OFFSET_X_MM", "0"))
 # bobina dupla: se sobrar coluna vazia na última linha, repete a última etiqueta para preenchê-la
 # (a etiqueta da coluna vazia seria desperdiçada de qualquer jeito). "0" desliga.
-PREENCHER_LINHA = os.environ.get("ELGIN_PREENCHER_LINHA", "1") != "0"
 
 LARGURA_MAX_MM = 108  # largura máxima de impressão da L42 Pro
 MAX_NOME_CHARS = 60
@@ -217,9 +216,6 @@ def montar_zpl(
         if not (1 <= qtd <= 100):
             raise ElginError(f"Etiqueta {i + 1}: quantidade deve estar entre 1 e 100")
         fila.extend([(nome, formatar_preco(item.get("precoVenda")), codigo)] * qtd)
-
-    if PREENCHER_LINHA and colunas > 1 and fila and len(fila) % colunas:
-        fila.extend([fila[-1]] * (colunas - len(fila) % colunas))
 
     # 2) agrupa em linhas da bobina (N etiquetas lado a lado)
     linhas = [tuple(fila[k:k + colunas]) for k in range(0, len(fila), colunas)]
