@@ -39,6 +39,10 @@ public class ProdutoService {
         return produtoRepository.findByNomeContainingIgnoreCaseAndAtivoTrue(nome);
     }
 
+    public List<Produto> buscarPorPreco(BigDecimal preco) {
+        return produtoRepository.findByPrecoVendaAndAtivoTrue(preco);
+    }
+
     public Produto buscarPorCodigoBarras(String codigoBarras) {
         return produtoRepository.findByCodigoBarras(codigoBarras)
                 .orElseThrow(() -> new ResourceNotFoundException("Produto não encontrado para o código: " + codigoBarras));

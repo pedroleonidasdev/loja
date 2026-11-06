@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
@@ -22,10 +23,18 @@ public class ProdutoController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'CAIXA')")
-    public List<Produto> listar(@RequestParam(required = false) String nome) {
+    public List<Produto> listar(
+            @RequestParam(required = false) String nome,
+            @RequestParam(required = false) BigDecimal preco) {
+
+        if (preco != null) {
+            return produtoService.buscarPorPreco(preco);
+        }
+
         if (nome != null && !nome.isBlank()) {
             return produtoService.buscarPorNome(nome);
         }
+
         return produtoService.listarTodos();
     }
 

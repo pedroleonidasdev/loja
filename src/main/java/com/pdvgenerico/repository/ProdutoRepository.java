@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -21,6 +22,10 @@ public interface ProdutoRepository extends JpaRepository<Produto, Long> {
     @Query("SELECT p FROM Produto p LEFT JOIN FETCH p.categoria " +
             "WHERE p.ativo = true AND LOWER(p.nome) LIKE LOWER(CONCAT('%', :nome, '%'))")
     List<Produto> findByNomeContainingIgnoreCaseAndAtivoTrue(@Param("nome") String nome);
+
+    @Query("SELECT p FROM Produto p LEFT JOIN FETCH p.categoria " +
+            "WHERE p.ativo = true AND p.precoVenda = :preco")
+    List<Produto> findByPrecoVendaAndAtivoTrue(@Param("preco") BigDecimal preco);
 
     @Query("SELECT p FROM Produto p LEFT JOIN FETCH p.categoria WHERE p.ativo = true")
     List<Produto> findByAtivoTrue();
