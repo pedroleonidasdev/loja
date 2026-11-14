@@ -285,3 +285,145 @@ def imprimir_cupom(venda: dict) -> None:
         return
 
     enviar_para_cups(dados)
+
+
+# --- Impressão do cupom de TROCA (comprovante não fiscal) ---------------------
+
+_ROTULO_FORMA_PAGAMENTO = {
+    "PIX": "Pix",
+    "DINHEIRO": "Dinheiro",
+    "CARTAO_CREDITO": "Cartão de crédito",
+    "CARTAO_DEBITO": "Cartão de débito",
+    "CHEQUE": "Cheque",
+    "BOLETO": "Boleto",
+    "MULTIPLO": "Múltiplos pagamentos",
+}
+
+
+def _linhas_itens_troca(itens: list, largura: int) -> list:
+    """Linhas de uma lista de itens da troca (mesmo layout dos itens do cupom de venda)."""
+    linhas = []
+    for item in itens:
+        nome = str(item.get("produtoNome", "")).strip() or "Produto"
+        quantidade = item.get("quantidade", 0)
+        try:
+            quantidade_fmt = f"{float(quantidade):g}"
+        except (TypeError, ValueError):
+            quantidade_fmt = str(quantidade)
+
+        texto_item = _quebrar_texto_cupom(f"{quantidade_fmt}x {nome}", largura - 1)
+        for linha_extra in texto_item[:-1]:
+            linhas.append(linha_extra)
+        linhas.append(_linha_cupom(texto_item[-1], formatar_preco(item.get("subtotal")), largura))
+        linhas.append(f"   (unit. {formatar_preco(item.get('precoUnitario'))})")
+    return linhas
+
+
+def montar_stream_cupom_troca(troca: dict) -> bytes:
+    """Monta o cupom não fiscal de uma TROCA (itens devolvidos, itens novos e
+    diferença) e devolve os bytes RAW ESC/POS para a Goldensky. Lança CupomError
+    com mensagem segura para mostrar ao usuário quando os dados são inválidos."""
+    if not isinstance(troca, dict) or not troca:
+        raise CupomError("Dados da troca ausentes ou inválidos")
+
+    devolvidos = troca.get("itensDevolvidos") or []
+    novos = troca.get("itensNovos") or []
+    if not devolvidos and not novos:
+        raise CupomError("A troca não possui itens para imprimir")
+
+    largura = LARGURA_CUPOM_COLS
+    linhas = []
+
+    linhas.append(NOME_LOJA.upper().center(largura))
+    linhas.append("CNPJ: 50.622.630/0001-76".center(largura))
+    if ENDERECO_LOJA:
+        linhas.append(ENDERECO_LOJA.center(largura))
+    if TELEFONE_LOJA:
+        linhas.append(f"WhatsApp: {TELEFONE_LOJA}".center(largura))
+    linhas.append(_ESC_NEGRITO_ON + "CUPOM DE TROCA".center(largura) + _ESC_NEGRITO_OFF)
+    linhas.append("Cupom não fiscal".center(largura))
+    linhas.append("-" * largura)
+
+    troca_id = troca.get("id")
+    cabecalho_esq = f"Troca #{troca_id}" if troca_id not in (None, "") else ""
+    linhas.append(_linha_cupom(cabecalho_esq, _formatar_data_hora_cupom(troca.get("dataHora")), largura))
+
+    venda_origem = troca.get("vendaOrigemId")
+    if venda_origem not in (None, ""):
+        linhas.append(f"Venda de origem: #{venda_origem}")
+
+    operador = str(troca.get("usuarioNome", "")).strip()
+    if operador:
+        linhas.append(f"Operador: {operador}")
+
+    linhas.append("-" * largura)
+
+    linhas.append(_ESC_NEGRITO_ON + "DEVOLVIDO PELO CLIENTE" + _ESC_NEGRITO_OFF)
+    if devolvidos:
+        linhas.extend(_linhas_itens_troca(devolvidos, largura))
+    else:
+        linhas.append("   (nenhum item)")
+    linhas.append(_linha_cupom("Total devolvido", formatar_preco(troca.get("valorDevolvido")), largura))
+
+    linhas.append("-" * largura)
+
+    linhas.append(_ESC_NEGRITO_ON + "NOVO PRODUTO LEVADO" + _ESC_NEGRITO_OFF)
+    if novos:
+        linhas.extend(_linhas_itens_troca(novos, largura))
+    else:
+        linhas.append("   (nenhum item)")
+    linhas.append(_linha_cupom("Total novo", formatar_preco(troca.get("valorNovo")), largura))
+
+    linhas.append("-" * largura)
+
+    try:
+        diferenca = float(troca.get("diferenca") or 0)
+    except (TypeError, ValueError):
+        diferenca = 0.0
+
+    if abs(diferenca) < 0.005:
+        rotulo_diferenca = "SEM DIFERENÇA"
+    elif diferenca > 0:
+        rotulo_diferenca = "DIFERENÇA A PAGAR"
+    else:
+        rotulo_diferenca = "TROCO DEVOLVIDO"
+    linhas.append(
+        _ESC_NEGRITO_ON
+        + _linha_cupom(rotulo_diferenca, formatar_preco(abs(diferenca)), largura)
+        + _ESC_NEGRITO_OFF
+    )
+
+    forma = troca.get("formaPagamentoDiferenca")
+    if forma and abs(diferenca) >= 0.005:
+        rotulo_forma = _ROTULO_FORMA_PAGAMENTO.get(str(forma), str(forma))
+        prefixo = "Pago via" if diferenca > 0 else "Devolvido via"
+        linhas.append(f"{prefixo}: {rotulo_forma}")
+
+    observacao = str(troca.get("observacao") or "").strip()
+    if observacao:
+        linhas.append("")
+        for linha_obs in _quebrar_texto_cupom(f"Obs: {observacao}", largura):
+            linhas.append(linha_obs)
+
+    linhas.append("")
+    linhas.append("Obrigado pela preferência!".center(largura))
+    if INSTAGRAM_LOJA:
+        linhas.append(f"Instagram: {INSTAGRAM_LOJA}".center(largura))
+    linhas.append("")
+
+    texto = _ESC_INIT + _ESC_TABELA_CP850 + _ESC_ALINHAR_ESQUERDA + "\n".join(linhas) + "\n"
+    return texto.encode(CODEPAGE_CUPOM, errors="replace") + _ESC_AVANCAR_E_CORTAR.encode(CODEPAGE_CUPOM)
+
+
+def imprimir_cupom_troca(troca: dict) -> None:
+    """Monta e envia o cupom não fiscal de uma troca para a Goldensky.
+    Lança CupomError com mensagem segura para mostrar ao usuário em caso
+    de falha esperada (dados inválidos, impressora offline, etc)."""
+    dados = montar_stream_cupom_troca(troca)
+
+    if DRY_RUN:
+        with open(DRY_RUN_OUTPUT_CUPOM, "wb") as f:
+            f.write(dados)
+        return
+
+    enviar_para_cups(dados)

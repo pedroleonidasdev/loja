@@ -27,6 +27,11 @@ Endpoints:
                               itens, subtotal, desconto, total, pagamentos) —
                               é o mesmo formato que o frontend do PDV envia ao
                               fechar uma venda. Imprime o recibo não fiscal.
+  POST /imprimir-cupom-troca  body: dados da troca (id, usuarioNome, dataHora,
+                              vendaOrigemId, observacao, itensDevolvidos, itensNovos,
+                              valorDevolvido, valorNovo, diferenca, formaPagamentoDiferenca)
+                              — é o mesmo formato que a tela de Trocas recebe do backend.
+                              Imprime o cupom de troca não fiscal na Goldensky.
   GET  /status                healthcheck (etiquetas: Elgin ZPL; cupom: Goldensky)
 
 Impressoras: cupom -> Goldensky 80mm (fila CUPS Goldensky-80); etiquetas -> Elgin L42
@@ -43,7 +48,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import elgin_l42
 from goldensky_core import (
-    CupomError, EtiquetaError, LARGURA_MAX_MM, imprimir_cupom, imprimir_etiquetas,
+    CupomError, EtiquetaError, LARGURA_MAX_MM, imprimir_cupom, imprimir_cupom_troca,
+    imprimir_etiquetas,
 )
 
 HOST = os.environ.get("GOLDENSKY_AGENTE_HOST", "127.0.0.1")
@@ -102,6 +108,9 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         if self.path == "/imprimir-cupom":
             self._tratar_imprimir_cupom()
+            return
+        if self.path == "/imprimir-cupom-troca":
+            self._tratar_imprimir_cupom_troca()
             return
         if self.path != "/imprimir-etiquetas":
             self._responder_json(404, {"mensagem": "Rota não encontrada"})
@@ -175,6 +184,27 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         self._responder_json(200, {"mensagem": "Cupom enviado para a Goldensky."})
+
+    def _tratar_imprimir_cupom_troca(self):
+        try:
+            tamanho = int(self.headers.get("Content-Length", 0))
+            corpo_bruto = self.rfile.read(tamanho) if tamanho > 0 else b""
+            troca = json.loads(corpo_bruto or b"{}")
+        except (ValueError, json.JSONDecodeError):
+            self._responder_json(400, {"mensagem": "JSON inválido"})
+            return
+
+        try:
+            imprimir_cupom_troca(troca)
+        except CupomError as e:
+            self._responder_json(422, {"mensagem": str(e)})
+            return
+        except Exception as e:  # falha inesperada — não vaza detalhe interno pro navegador
+            sys.stderr.write(f"Erro inesperado ao imprimir cupom de troca: {e}\n")
+            self._responder_json(500, {"mensagem": "Erro inesperado ao acionar a impressora"})
+            return
+
+        self._responder_json(200, {"mensagem": "Cupom de troca enviado para a Goldensky."})
 
     def log_message(self, format, *args):
         sys.stderr.write(f"[goldensky-agente] {self.address_string()} - {format % args}\n")
